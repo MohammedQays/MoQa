@@ -1,0 +1,14 @@
+#LWP-Cookies-2.0
+Set-Cookie3: WMF-Last-Access="13-Oct-2024"; path="/"; domain="ar.wikipedia.org"; path_spec; secure; expires="2024-11-14 00:00:00Z"; HttpOnly=None; version=0
+Set-Cookie3: NetworkProbeLimit="0.001"; path="/"; domain="ar.wikipedia.org"; path_spec; secure; expires="2024-10-13 11:20:36Z"; SameSite=Lax; version=0
+Set-Cookie3: arwikiSession=266ogupuoskd0c5lhuf24i8i0i7s5dod; path="/"; domain="ar.wikipedia.org"; path_spec; secure; discard; HttpOnly=None; SameSite=None; version=0
+Set-Cookie3: arwikiUserID=2637998; path="/"; domain="ar.wikipedia.org"; path_spec; secure; expires="2025-10-13 10:20:50Z"; HttpOnly=None; SameSite=None; version=0
+Set-Cookie3: arwikiUserName=MoQabot; path="/"; domain="ar.wikipedia.org"; path_spec; secure; expires="2025-10-13 10:20:50Z"; HttpOnly=None; SameSite=None; version=0
+Set-Cookie3: loginnotify_prevlogins="2024-1umrf19-rphybq1wjxjrrge82g9yqz9w1r69f0b"; path="/"; domain="ar.wikipedia.org"; path_spec; secure; expires="2025-04-11 10:20:50Z"; HttpOnly=None; version=0
+Set-Cookie3: cpPosIndex="2%401728814852%238d7754391525d99ab5b2510e06b7a2a5"; path="/"; domain="ar.wikipedia.org"; path_spec; secure; expires="2024-10-13 10:21:00Z"; HttpOnly=None; version=0
+Set-Cookie3: UseDC=master; path="/"; domain="ar.wikipedia.org"; path_spec; secure; expires="2024-10-13 10:21:00Z"; HttpOnly=None; version=0
+Set-Cookie3: WMF-Last-Access-Global="13-Oct-2024"; path="/"; domain=".wikipedia.org"; path_spec; domain_dot; secure; expires="2024-11-14 00:00:00Z"; HttpOnly=None; version=0
+Set-Cookie3: GeoIP="IQ:BB:Hillah:32.46:44.42:v4"; path="/"; domain=".wikipedia.org"; path_spec; domain_dot; secure; discard; version=0
+Set-Cookie3: centralauth_User=MoQabot; path="/"; domain=".wikipedia.org"; path_spec; domain_dot; secure; expires="2025-10-13 10:20:50Z"; HttpOnly=None; SameSite=None; version=0
+Set-Cookie3: centralauth_Token=69e1b3c5be37f43a18f7e6ef6a77e1df; path="/"; domain=".wikipedia.org"; path_spec; domain_dot; secure; expires="2025-10-13 10:20:50Z"; HttpOnly=None; SameSite=None; version=0
+Set-Cookie3: centralauth_Session=d9b1ccd369b9bae756599d448eec17e8; path="/"; domain=".wikipedia.org"; path_spec; domain_dot; secure; discard; HttpOnly=None; SameSite=None; version=0
