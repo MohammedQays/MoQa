@@ -1,12 +1,11 @@
 name: Run MoQabot
 
-# تحديد وقت التشغيل أو عند كل دفع (Push)
 on:
   push:
     branches:
       - main
   schedule:
-    - cron: '0 * * * *'  # تشغيل البوت كل ساعة. يمكنك تخصيص الجدول كما تريد.
+    - cron: '0 * * * *'
 
 jobs:
   run-bot:
@@ -25,6 +24,14 @@ jobs:
       run: |
         pip install -r requirements.txt
 
+    - name: Debugging Environment Variables
+      run: |
+        echo "WIKI_USERNAME is set to ${{ secrets.WIKI_USERNAME }}"
+        echo "Checking other secrets..."
+
     - name: Run MoQabot
+      env:
+        WIKI_USERNAME: ${{ secrets.WIKI_USERNAME }}
+        WIKI_PASSWORD: ${{ secrets.WIKI_PASSWORD }}
       run: |
         python wikipedia_stub_bot.py
