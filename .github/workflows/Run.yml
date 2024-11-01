@@ -5,17 +5,18 @@ on:
     branches:
       - main
   schedule:
-    - cron: '0 * * * *'  # تشغيل البوت كل ساعة
+    - cron: '0 * * * *'
 
 jobs:
-  build:
+  run-bot:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout repository
+      uses: actions/checkout@v3   # تحديث إلى الإصدار v3
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v4   # تحديث إلى الإصدار v4
       with:
         python-version: '3.x'
 
@@ -23,6 +24,12 @@ jobs:
       run: |
         pip install -r requirements.txt
 
-    - name: Run the bot
+    - name: Run MoQabot
+      env:
+        WIKI_USERNAME: ${{ secrets.WIKI_USERNAME }}
+        WIKI_PASSWORD: ${{ secrets.WIKI_PASSWORD }}
       run: |
         python wikipedia_stub_bot.py
+    - name: Install dependencies
+      run: |
+       pip install -r requirements.txt
