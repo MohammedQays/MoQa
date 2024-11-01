@@ -28,5 +28,6 @@ jobs:
       env:
         WIKI_USERNAME: ${{ secrets.WIKI_USERNAME }}
         WIKI_PASSWORD: ${{ secrets.WIKI_PASSWORD }}
+        # أضف بقية المتغيرات الأخرى إن وجدت
       run: |
         python wikipedia_stub_bot.py
