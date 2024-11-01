@@ -13,21 +13,16 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3   # تحديث إلى الإصدار v3
 
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4   # تحديث إلى الإصدار v4
       with:
         python-version: '3.x'
 
     - name: Install dependencies
       run: |
         pip install -r requirements.txt
-
-    - name: Debugging Environment Variables
-      run: |
-        echo "WIKI_USERNAME is set to ${{ secrets.WIKI_USERNAME }}"
-        echo "Checking other secrets..."
 
     - name: Run MoQabot
       env:
