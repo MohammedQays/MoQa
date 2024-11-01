@@ -30,3 +30,6 @@ jobs:
         WIKI_PASSWORD: ${{ secrets.WIKI_PASSWORD }}
       run: |
         python wikipedia_stub_bot.py
+    - name: Install dependencies
+      run: |
+       pip install -r requirements.txt
