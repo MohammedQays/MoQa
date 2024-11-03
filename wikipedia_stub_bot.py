@@ -87,7 +87,7 @@ def process_page(page):
         if score < threshold and not re.search(r'{{بذرة\b', original_text):
             # تحديث نص الصفحة
             page.text = new_text
-            page.save(summary='إضافة قالب بذرة - تجريبي')
+            page.save(summary='بوت:إضافة قالب بذرة - تجريبي')
             print(f"تمت إضافة قالب بذرة إلى الصفحة: {page.title()}")
         else:
             print(f"الصفحة {page.title()} لا تحتاج إلى تعديل.")
