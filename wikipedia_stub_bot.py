@@ -81,7 +81,7 @@ def process_page(page):
         size_in_bytes = len(text_without_templates.encode('utf-8'))
 
         # حساب المعادلة لتحديد ما إذا كانت الصفحة تحتاج إلى قالب بذرة
-        score = (word_count / 300 * 40) + (size_in_bytes / 4000 * 60)
+        score = (word_count / 190 * 40) + (size_in_bytes / 2000 * 60)
         threshold = 100  # تحديد قيمة عتبة (threshold) المناسبة
 
         if score < threshold and not re.search(r'{{بذرة\b', original_text):
