@@ -30,4 +30,4 @@ jobs:
         WIKI_USERNAME: ${{ secrets.WIKI_USERNAME }}
         WIKI_PASSWORD: ${{ secrets.WIKI_PASSWORD }}
       run: |
-        python runner.py
+        python 
