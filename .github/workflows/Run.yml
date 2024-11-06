@@ -1,33 +1,7 @@
-name: Run MoQabot
-
 on:
   push:
     branches:
       - main
-  schedule:
-    - cron: '0 11 * * 1'  # تشغيل البوت الساعة 11 صباحًا كل يوم اثنين
-    - cron: '0 11 * * 4'  # تشغيل البوت الساعة 11 صباحًا كل يوم خميس
-
-jobs:
-  run-bot:
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3   # تحديث إلى الإصدار v3
-
-    - name: Set up Python
-      uses: actions/setup-python@v4   # تحديث إلى الإصدار v4
-      with:
-        python-version: '3.x'
-
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
-
-    - name: Run MoQabot
-      env:
-        WIKI_USERNAME: ${{ secrets.WIKI_USERNAME }}
-        WIKI_PASSWORD: ${{ secrets.WIKI_PASSWORD }}
-      run: |
-        python runner.py
+  # قم بتعليق أو حذف هذا الجزء لتعطيل التشغيل التلقائي
+  # schedule:
+  #   - cron: '0 * * * *'
