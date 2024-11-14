@@ -15,7 +15,6 @@ class Disambiguation:
         self.list_of_templates = ["توضيح", "Disambig", "صفحة توضيح", "Disambiguation"]
 
     def check(self, logic="or"):
-        # التحقق باستخدام المنطق المطلوب
         return (self.check_text() or self.check_title()) or self.have_molecular_formula_set_index_articles()
 
     def check_text(self):
@@ -78,15 +77,21 @@ def process_page(page):
         size_in_bytes = len(text_without_templates.encode('utf-8'))
 
         # حساب المعادلة لتحديد ما إذا كانت الصفحة تحتاج إلى قالب بذرة
-        score = (word_count / 190 * 40) + (size_in_bytes / 2000 * 60)
-        threshold = 100  # تحديد قيمة عتبة (threshold) المناسبة
+        word_score = (word_count / 300) * 50   # يساهم عدد الكلمات بنسبة 50% من الدرجة النهائية
+        size_score = (size_in_bytes / 3000) * 50  # يساهم الحجم بالبايت بنسبة 50% من الدرجة النهائية
+        score = word_score + size_score
+        threshold = 100  # القيمة الحدية للقرار
 
         if score < threshold and not re.search(r'{{بذرة\b', original_text):
             # تحديث نص الصفحة
             page.text = new_text
-            page.save(summary='بوت:إضافة قالب بذرة - تجريبي')
-            print(f"تمت إضافة قالب بذرة إلى الصفحة: {page.title()}")
+            try:
+                page.save(summary='بوت:إضافة قالب بذرة - تجريبي')
+                print(f"تمت إضافة قالب بذرة إلى الصفحة: {page.title()}")
+            except Exception as e:
+                print(f"حدث خطأ أثناء حفظ الصفحة {page.title()}: {e}")
         else:
+            print(f"الصفحة {page.title()} لا تحتاج إلى قالب بذرة.")
     except Exception as e:
         print(f"حدث خطأ أثناء معالجة الصفحة {page.title()}: {e}")
 
