@@ -72,26 +72,38 @@ def process_page(page):
             # إذا لم توجد تصنيفات، إضافة قالب البذرة في النهاية
             new_text = original_text.strip() + '\n\n{{بذرة}}'
 
-        # التحقق من شروط الحجم والكلمات وغياب قالب بذرة
+        # التحقق من شروط الحجم والكلمات وغياب أو وجود قالب بذرة
         word_count = len(text_without_templates.split())
         size_in_bytes = len(text_without_templates.encode('utf-8'))
 
         # حساب المعادلة لتحديد ما إذا كانت الصفحة تحتاج إلى قالب بذرة
-        word_score = (word_count / 200) * 40   # يساهم عدد الكلمات بنسبة 50% من الدرجة النهائية
-        size_score = (size_in_bytes / 3000) * 60  # يساهم الحجم بالبايت بنسبة 50% من الدرجة النهائية
+        word_score = (word_count / 200) * 40
+        size_score = (size_in_bytes / 3000) * 60
         score = word_score + size_score
         threshold = 100  # القيمة الحدية للقرار
 
-        if score < threshold and not re.search(r'{{بذرة\b', original_text):
-            # تحديث نص الصفحة
+        # إذا كانت المقالة أعلى من الحد الأدنى وتحتوي على قالب بذرة، قم بإزالة القالب
+        if score >= threshold and re.search(r'{{بذرة\b', original_text):
+            # إزالة قالب البذرة
+            new_text = re.sub(r'{{بذرة}}\n*', '', original_text, flags=re.IGNORECASE).strip()
             page.text = new_text
             try:
-                page.save(summary='بوت:إضافة قالب بذرة - تجريبي')
+                page.save(summary='بوت: إزالة قالب بذرة')
+                print(f"تمت إزالة قالب بذرة من الصفحة: {page.title()}")
+            except Exception as e:
+                print(f"حدث خطأ أثناء حفظ الصفحة {page.title()}: {e}")
+
+        # إذا كانت المقالة أقل من الحد الأدنى ولا تحتوي على قالب بذرة، قم بإضافته
+        elif score < threshold and not re.search(r'{{بذرة\b', original_text):
+            # تحديث نص الصفحة بإضافة قالب بذرة
+            page.text = new_text
+            try:
+                page.save(summary='بوت: إضافة قالب بذرة - تجريبي')
                 print(f"تمت إضافة قالب بذرة إلى الصفحة: {page.title()}")
             except Exception as e:
                 print(f"حدث خطأ أثناء حفظ الصفحة {page.title()}: {e}")
         else:
-            print(f"الصفحة {page.title()} لا تحتاج إلى قالب بذرة.")
+            print(f"الصفحة {page.title()} لا تحتاج إلى تعديل.")
     except Exception as e:
         print(f"حدث خطأ أثناء معالجة الصفحة {page.title()}: {e}")
 
