@@ -77,8 +77,8 @@ def process_page(page):
         size_in_bytes = len(text_without_templates.encode('utf-8'))
 
         # حساب المعادلة لتحديد ما إذا كانت الصفحة تحتاج إلى قالب بذرة
-        word_score = (word_count / 300) * 50   # يساهم عدد الكلمات بنسبة 50% من الدرجة النهائية
-        size_score = (size_in_bytes / 3000) * 50  # يساهم الحجم بالبايت بنسبة 50% من الدرجة النهائية
+        word_score = (word_count / 200) * 40   # يساهم عدد الكلمات بنسبة 50% من الدرجة النهائية
+        size_score = (size_in_bytes / 3000) * 60  # يساهم الحجم بالبايت بنسبة 50% من الدرجة النهائية
         score = word_score + size_score
         threshold = 100  # القيمة الحدية للقرار
 
