@@ -8,18 +8,18 @@ from datetime import datetime
 site = pywikibot.Site('ar', 'wikipedia')
 site.login()
 
-# تحميل المقالات من الملف JSON
-def load_ignored_titles(file_path):
+# تحميل المقالات المستهدفة من ملف JSON
+def load_target_titles(file_path):
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
-            return {item['title'] for item in data['query']['categorymembers']}
+            return [item['title'] for item in data['query']['categorymembers']]
     except Exception as e:
         print(f"حدث خطأ أثناء قراءة الملف: {e}")
-        return set()
+        return []
 
-# تحميل قائمة المقالات التي يجب تجاهلها
-ignored_titles = load_ignored_titles("target_pages.json")
+# تحميل قائمة المقالات المستهدفة
+target_titles = load_target_titles("target_pages.json")
 
 class Disambiguation:
     def __init__(self, page, page_title, page_text):
@@ -54,16 +54,11 @@ class Disambiguation:
     def check_title(self):
         return bool(re.search(r"\(\s*(توضيح|disambiguation)\s*\)", self.page_title))
 
-# البحث عن المقالات
+# معالجة المقالة
 def process_page(page):
     try:
         # تجاهل الصفحة إذا كانت تحويلة
         if page.isRedirectPage():
-            return
-
-        # تجاهل المقالات المدرجة في قائمة التجاهل
-        if page.title() in ignored_titles:
-            print(f"تجاهل الصفحة {page.title()} لأنها مدرجة في قائمة التجاهل.")
             return
 
         original_text = page.text
@@ -107,6 +102,11 @@ def process_page(page):
     except Exception as e:
         print(f"حدث خطأ أثناء معالجة الصفحة {page.title()}: {e}")
 
-# معالجة جميع المقالات في نطاق المقالات (النطاق الرئيسي)
-for page in site.allpages(namespace=0):
-    process_page(page)
+# معالجة المقالات المستهدفة فقط
+for title in target_titles:
+    try:
+        page = pywikibot.Page(site, title)
+        print(f"معالجة الصفحة: {page.title()}")
+        process_page(page)
+    except Exception as e:
+        print(f"حدث خطأ أثناء معالجة الصفحة {title}: {e}")
