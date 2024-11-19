@@ -44,6 +44,7 @@ def process_page(page):
     try:
         # تجاهل الصفحة إذا كانت تحويلة
         if page.isRedirectPage():
+            print(f"تم تجاهل الصفحة {page.title()} لأنها تحويلة.")
             return
 
         original_text = page.text
@@ -93,7 +94,6 @@ def process_page(page):
             page.save(summary='بوت: إضافة قالب بذرة - تجريبي')
             print(f"تمت إضافة قالب بذرة إلى الصفحة: {page.title()}")
         else:
-            print(f"الصفحة {page.title()} لا تحتاج إلى تعديل.")
     except Exception as e:
         print(f"حدث خطأ أثناء معالجة الصفحة {page.title()}: {e}")
 
