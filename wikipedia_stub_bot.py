@@ -63,12 +63,14 @@ def process_page(page):
 
         # تجاهل المقالات المدرجة في قائمة التجاهل
         if page.title() in ignored_titles:
+            print(f"تجاهل الصفحة {page.title()} لأنها مدرجة في قائمة التجاهل.")
             return
 
         original_text = page.text
 
         # تجاهل المقالات التي تحتوي على تحويل في المتن
         if re.match(r'#تحويل\s*\[\[.*?\]\]', original_text, re.IGNORECASE):
+            print(f"تجاهل الصفحة {page.title()} لأنها تحتوي على تحويل في المتن.")
             return
 
         disambiguation_checker = Disambiguation(page, page.title(), original_text)
@@ -98,7 +100,7 @@ def process_page(page):
 
         if (word_count / 300 * 40) + (size_in_bytes / 4000 * 60) < threshold and not re.search(r'{{بذرة\b', original_text):
             page.text = new_text
-            page.save(summary='بوت: إضافة قالب بذرة')
+            page.save(summary='إضافة قالب بذرة - تجريبي')
             print(f"تمت إضافة قالب بذرة إلى الصفحة: {page.title()}")
         else:
             print(f"الصفحة {page.title()} لا تحتاج إلى تعديل.")
