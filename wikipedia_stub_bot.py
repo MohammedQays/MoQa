@@ -15,6 +15,7 @@ class Disambiguation:
         self.list_of_templates = ["توضيح", "Disambig", "صفحة توضيح", "Disambiguation"]
 
     def check(self, logic="or"):
+        # التحقق باستخدام المنطق المطلوب
         return (self.check_text() or self.check_title()) or self.have_molecular_formula_set_index_articles()
 
     def check_text(self):
@@ -42,18 +43,21 @@ def process_page(page):
     try:
         # تجاهل الصفحة إذا كانت تحويلة
         if page.isRedirectPage():
+            print(f"تم تجاهل الصفحة {page.title()} لأنها تحويلة.")
             return
 
         original_text = page.text
 
         # تجاهل المقالات التي تحتوي على تحويل في المتن
         if re.match(r'#تحويل\s*\[\[.*?\]\]', original_text, re.IGNORECASE):
+            print(f"تجاهل الصفحة {page.title()} لأنها تحتوي على تحويل في المتن.")
             return
 
         disambiguation_checker = Disambiguation(page, page.title(), original_text)
         
         # تجاهل صفحات التوضيح بناءً على النص أو العنوان أو التصنيفات
         if disambiguation_checker.check():
+            print(f"تم تجاهل الصفحة: {page.title()} (صفحة توضيح)")
             return
 
         # تجاهل القوالب باستخدام تعبير منتظم
@@ -72,36 +76,19 @@ def process_page(page):
             # إذا لم توجد تصنيفات، إضافة قالب البذرة في النهاية
             new_text = original_text.strip() + '\n\n{{بذرة}}'
 
-        # التحقق من شروط الحجم والكلمات وغياب أو وجود قالب بذرة
+        # التحقق من شروط الحجم والكلمات وغياب قالب بذرة
         word_count = len(text_without_templates.split())
         size_in_bytes = len(text_without_templates.encode('utf-8'))
 
         # حساب المعادلة لتحديد ما إذا كانت الصفحة تحتاج إلى قالب بذرة
-        word_score = (word_count / 200) * 40
-        size_score = (size_in_bytes / 3000) * 60
-        score = word_score + size_score
-        threshold = 100  # القيمة الحدية للقرار
+        score = (word_count / 200 * 40) + (size_in_bytes / 4000 * 60)
+        threshold = 100  # تحديد قيمة عتبة (threshold) المناسبة
 
-        # إذا كانت المقالة أعلى من الحد الأدنى وتحتوي على قالب بذرة، قم بإزالة القالب
-        if score >= threshold and re.search(r'{{بذرة\b', original_text):
-            # إزالة قالب البذرة
-            new_text = re.sub(r'{{بذرة}}\n*', '', original_text, flags=re.IGNORECASE).strip()
+        if score < threshold and not re.search(r'{{بذرة\b', original_text):
+            # تحديث نص الصفحة
             page.text = new_text
-            try:
-                page.save(summary='بوت: إزالة قالب بذرة')
-                print(f"تمت إزالة قالب بذرة من الصفحة: {page.title()}")
-            except Exception as e:
-                print(f"حدث خطأ أثناء حفظ الصفحة {page.title()}: {e}")
-
-        # إذا كانت المقالة أقل من الحد الأدنى ولا تحتوي على قالب بذرة، قم بإضافته
-        elif score < threshold and not re.search(r'{{بذرة\b', original_text):
-            # تحديث نص الصفحة بإضافة قالب بذرة
-            page.text = new_text
-            try:
-                page.save(summary='بوت: إضافة قالب بذرة - تجريبي')
-                print(f"تمت إضافة قالب بذرة إلى الصفحة: {page.title()}")
-            except Exception as e:
-                print(f"حدث خطأ أثناء حفظ الصفحة {page.title()}: {e}")
+            page.save(summary='بوت:إضافة قالب بذرة - تجريبي')
+            print(f"تمت إضافة قالب بذرة إلى الصفحة: {page.title()}")
         else:
             print(f"الصفحة {page.title()} لا تحتاج إلى تعديل.")
     except Exception as e:
