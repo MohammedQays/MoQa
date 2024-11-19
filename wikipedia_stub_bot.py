@@ -46,7 +46,6 @@ def process_page(page):
     try:
         # تجاهل الصفحة إذا كانت تحويلة
         if page.isRedirectPage():
-            print(f"تم تجاهل الصفحة {page.title()} لأنها تحويلة.")
             return
 
         original_text = page.text
@@ -60,7 +59,6 @@ def process_page(page):
         
         # تجاهل صفحات التوضيح بناءً على النص أو العنوان أو التصنيفات
         if disambiguation_checker.check():
-            print(f"تم تجاهل الصفحة: {page.title()} (صفحة توضيح)")
             return
 
         # تجاهل القوالب باستخدام تعبير منتظم
