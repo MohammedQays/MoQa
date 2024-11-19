@@ -103,4 +103,9 @@ def process_page(page):
 
 # معالجة جميع المقالات في نطاق المقالات (النطاق الرئيسي)
 for page in site.allpages(namespace=0):
+    # التحقق من أن العنوان يبدأ بحرف بين "أ" و "ي"
+    if not re.match(r'^[أ-ي]', page.title()):
+        continue  # تخطي الصفحات التي لا تبدأ بالحروف المطلوبة
+    
+    # معالجة الصفحة
     process_page(page)
