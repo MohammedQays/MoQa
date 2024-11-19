@@ -43,21 +43,18 @@ def process_page(page):
     try:
         # تجاهل الصفحة إذا كانت تحويلة
         if page.isRedirectPage():
-            print(f"تم تجاهل الصفحة {page.title()} لأنها تحويلة.")
             return
 
         original_text = page.text
 
         # تجاهل المقالات التي تحتوي على تحويل في المتن
         if re.match(r'#تحويل\s*\[\[.*?\]\]', original_text, re.IGNORECASE):
-            print(f"تجاهل الصفحة {page.title()} لأنها تحتوي على تحويل في المتن.")
             return
 
         disambiguation_checker = Disambiguation(page, page.title(), original_text)
         
         # تجاهل صفحات التوضيح بناءً على النص أو العنوان أو التصنيفات
         if disambiguation_checker.check():
-            print(f"تم تجاهل الصفحة: {page.title()} (صفحة توضيح)")
             return
 
         # تجاهل القوالب باستخدام تعبير منتظم
@@ -86,7 +83,6 @@ def process_page(page):
             page.save(summary='بوت:إضافة قالب بذرة - تجريبي')
             print(f"تمت إضافة قالب بذرة إلى الصفحة: {page.title()}")
         else:
-            print(f"الصفحة {page.title()} لا تحتاج إلى تعديل.")
     except Exception as e:
         print(f"حدث خطأ أثناء معالجة الصفحة {page.title()}: {e}")
 
