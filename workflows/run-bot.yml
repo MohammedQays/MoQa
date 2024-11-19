@@ -5,7 +5,8 @@ on:
     branches:
       - main
   schedule:
-    - cron: '0 * * * *'  # تشغيل البوت كل ساعة
+    # تشغيل البوت يوم الجمعة الساعة 14:00 UTC
+    - cron: '0 14 * * 5'
 
 jobs:
   build:
@@ -24,4 +25,3 @@ jobs:
 
     - name: Run the bot
       run: |
-        
