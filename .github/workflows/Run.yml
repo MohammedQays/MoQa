@@ -26,6 +26,4 @@ jobs:
         WIKI_USERNAME: ${{ secrets.WIKI_USERNAME }}
         WIKI_PASSWORD: ${{ secrets.WIKI_PASSWORD }}
       run: |
-        python runner.py &
-        sleep 7200  # الانتظار ساعتين (7200 ثانية)
-        kill %1     # إيقاف العملية بعد انتهاء الساعتين
+        python runner.py
