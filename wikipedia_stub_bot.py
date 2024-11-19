@@ -44,21 +44,18 @@ def process_page(page):
     try:
         # تجاهل الصفحة إذا كانت تحويلة
         if page.isRedirectPage():
-            print(f"تم تجاهل الصفحة {page.title()} لأنها تحويلة.")
             return
 
         original_text = page.text
 
         # تجاهل المقالات التي تحتوي على تحويل في المتن
         if re.match(r'#تحويل\s*\[\[.*?\]\]', original_text, re.IGNORECASE):
-            print(f"تجاهل الصفحة {page.title()} لأنها تحتوي على تحويل في المتن.")
             return
 
         # التحقق من التصنيفات لتجاهل المقالات ضمن تصنيف "كواكب صغيرة مسماة"
         categories = page.categories()
         for cat in categories:
             if "كواكب صغيرة مسماة" in cat.title():
-                print(f"تم تجاهل الصفحة {page.title()} لأنها ضمن تصنيف كواكب صغيرة مسماة.")
                 return
 
         # التحقق من وجود القوالب أو التصنيفات أو العنوان الخاص بالتوضيح
@@ -103,9 +100,4 @@ def process_page(page):
 
 # معالجة جميع المقالات في نطاق المقالات (النطاق الرئيسي)
 for page in site.allpages(namespace=0):
-    # التحقق من أن العنوان يبدأ بحرف بين "أ" و "ي"
-    if not re.match(r'^[أ-ي]', page.title()):
-        continue  # تخطي الصفحات التي لا تبدأ بالحروف المطلوبة
-    
-    # معالجة الصفحة
     process_page(page)
