@@ -3,9 +3,10 @@ import subprocess
 
 # تشغيل سكربت البوت الأساسي
 print("تشغيل البوت من سكربت runner.py")
-subprocess.Popen(["python", "wikipedia_stub_bot.py"])
+process = subprocess.Popen(["python", "wikipedia_stub_bot.py"])
 
-# الاستمرار في العمل لمدة ساعة (3600 ثانية)
-time.sleep(3600)  # التوقف بعد ساعة
+# الاستمرار في العمل لمدة ساعتين (7200 ثانية)
+time.sleep(7200)  # التوقف بعد ساعتين
 
-print("تم إيقاف البوت بعد مرور ساعة.")
+# طباعة رسالة عند انتهاء الفترة
+print("تم إيقاف البوت بعد مرور ساعتين.")
