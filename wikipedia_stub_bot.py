@@ -51,12 +51,14 @@ def process_page(page):
 
         # تجاهل المقالات التي تحتوي على تحويل في المتن
         if re.match(r'#تحويل\s*\[\[.*?\]\]', original_text, re.IGNORECASE):
+            print(f"تجاهل الصفحة {page.title()} لأنها تحتوي على تحويل في المتن.")
             return
 
         # التحقق من التصنيفات لتجاهل المقالات ضمن تصنيف "كواكب صغيرة مسماة"
         categories = page.categories()
         for cat in categories:
             if "كواكب صغيرة مسماة" in cat.title():
+                print(f"تم تجاهل الصفحة {page.title()} لأنها ضمن تصنيف كواكب صغيرة مسماة.")
                 return
 
         # التحقق من وجود القوالب أو التصنيفات أو العنوان الخاص بالتوضيح
@@ -94,6 +96,7 @@ def process_page(page):
             page.save(summary='بوت: إضافة قالب بذرة - تجريبي')
             print(f"تمت إضافة قالب بذرة إلى الصفحة: {page.title()}")
         else:
+            print(f"الصفحة {page.title()} لا تحتاج إلى تعديل.")
     except Exception as e:
         print(f"حدث خطأ أثناء معالجة الصفحة {page.title()}: {e}")
 
