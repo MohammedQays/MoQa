@@ -1,7 +1,7 @@
 import pywikibot
 import re
 import wikitextparser as wtp
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # تعريف الموقع (اللغة المختارة هي العربية ar)
 site = pywikibot.Site('ar', 'wikipedia')
@@ -30,11 +30,8 @@ class Disambiguation:
         categories = self.page.categories()
         list_category = [
             'صفحات مجموعات صيغ كيميائية مفهرسة',
-            'كواكب صغيرة مسماة',
-            'كويكبات خلفية',
-            'حزام الكويكبات'
+            'كواكب صغيرة مسماة'
         ]
-        
         for cat in categories:
             for needed_cat in list_category:
                 if needed_cat in cat.title():
@@ -42,7 +39,6 @@ class Disambiguation:
         return False
 
     def check_title(self):
-        # التحقق من العنوان باستخدام تعبير عادي لاكتشاف وجود كلمات "توضيح" أو "disambiguation"
         return bool(re.search(r"\(\s*(توضيح|disambiguation)\s*\)", self.page_title))
 
 # البحث عن المقالات
@@ -58,16 +54,6 @@ def process_page(page):
         # تجاهل المقالات التي تحتوي على تحويل في المتن
         if re.match(r'#تحويل\s*\[\[.*?\]\]', original_text, re.IGNORECASE):
             print(f"تجاهل الصفحة {page.title()} لأنها تحتوي على تحويل في المتن.")
-            return
-
-        # التحقق من تاريخ إنشاء المقالة
-        oldest_revision_date = page.oldest_revision.timestamp
-        current_time = datetime.utcnow()  # الحصول على الوقت الحالي (بتوقيت UTC)
-        time_difference = current_time - oldest_revision_date
-
-        # التحقق إذا مر أكثر من 3 ساعات على إنشاء المقالة
-        if time_difference < timedelta(hours=3):
-            print(f"تم تجاهل الصفحة {page.title()} لأنها تم إنشاؤها منذ أقل من 3 ساعات.")
             return
 
         disambiguation_checker = Disambiguation(page, page.title(), original_text)
@@ -98,7 +84,7 @@ def process_page(page):
         size_in_bytes = len(text_without_templates.encode('utf-8'))
 
         # حساب المعادلة لتحديد ما إذا كانت الصفحة تحتاج إلى قالب بذرة
-        score = (word_count / 300 * 40) + (size_in_bytes / 4000 * 60)
+        score = (word_count / 200 * 40) + (size_in_bytes / 4000 * 60)
         threshold = 100  # تحديد قيمة عتبة (threshold) المناسبة
 
         if score < threshold and not re.search(r'{{بذرة\b', original_text):
@@ -111,13 +97,6 @@ def process_page(page):
     except Exception as e:
         print(f"حدث خطأ أثناء معالجة الصفحة {page.title()}: {e}")
 
-# فحص المقالات بالعناوين التي تبدأ بحروف عربية فقط
-def filter_arabic_pages():
-    for page in site.allpages(namespace=0):
-        # التحقق من أن العنوان يبدأ بحرف عربي
-        if page.title()[0].isalpha() and not re.match(r'^[\u0600-\u06FF]', page.title()):
-            continue  # تجاهل الصفحات التي لا تبدأ بحروف عربية
-        process_page(page)
-
-# معالجة المقالات
-filter_arabic_pages()
+# معالجة جميع المقالات في نطاق المقالات (النطاق الرئيسي)
+for page in site.allpages(namespace=0):
+    process_page(page)
