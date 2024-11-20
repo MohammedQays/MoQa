@@ -1,11 +1,23 @@
 import pywikibot
 import re
 import wikitextparser as wtp
-from concurrent.futures import ThreadPoolExecutor
+import json
+from datetime import datetime
 
 # تعريف الموقع (اللغة المختارة هي العربية ar)
 site = pywikibot.Site('ar', 'wikipedia')
 site.login()
+
+# تحميل قائمة التجاهل من ملف JSON
+def load_ignore_list(file_path):
+    try:
+        with open(file_path, 'r', encoding='utf-8') as file:
+            ignore_list = set(json.load(file))
+        print(f"تم تحميل قائمة التجاهل ({len(ignore_list)} مقال).")
+        return ignore_list
+    except Exception as e:
+        print(f"خطأ في تحميل قائمة التجاهل: {e}")
+        return set()
 
 class Disambiguation:
     def __init__(self, page, page_title, page_text):
@@ -14,8 +26,9 @@ class Disambiguation:
         self.page_text = str(page_text).lower()
         self.list_of_templates = ["توضيح", "Disambig", "صفحة توضيح", "Disambiguation"]
 
-    def check(self):
-        return self.check_text() or self.check_title() or self.have_molecular_formula_set_index_articles()
+    def check(self, logic="or"):
+        # التحقق باستخدام المنطق المطلوب
+        return (self.check_text() or self.check_title()) or self.have_molecular_formula_set_index_articles()
 
     def check_text(self):
         parsed = wtp.parse(self.page_text)
@@ -38,45 +51,57 @@ class Disambiguation:
         return bool(re.search(r"\(\s*(توضيح|disambiguation)\s*\)", self.page_title))
 
 
-def process_page(page):
+# البحث عن المقالات
+def process_page(page, ignore_list):
     try:
+        # التحقق من أن المقالة موجودة في قائمة التجاهل
+        if page.title() in ignore_list:
+            print(f"تم تجاهل الصفحة {page.title()} لأنها موجودة في قائمة التجاهل.")
+            return
+
+        # تجاهل الصفحة إذا كانت تحويلة
         if page.isRedirectPage():
             print(f"تم تجاهل الصفحة {page.title()} لأنها تحويلة.")
             return
 
         original_text = page.text
 
+        # تجاهل المقالات التي تحتوي على تحويل في المتن
         if re.match(r'#تحويل\s*\[\[.*?\]\]', original_text, re.IGNORECASE):
             print(f"تجاهل الصفحة {page.title()} لأنها تحتوي على تحويل في المتن.")
             return
 
-        categories = page.categories()
-        for cat in categories:
-            if "كواكب صغيرة مسماة" in cat.title():
-                print(f"تم تجاهل الصفحة {page.title()} لأنها ضمن تصنيف كواكب صغيرة مسماة.")
-                return
-
+        # التحقق من وجود القوالب أو التصنيفات أو العنوان الخاص بالتوضيح
         disambiguation_checker = Disambiguation(page, page.title(), original_text)
+        
+        # تجاهل صفحات التوضيح بناءً على النص أو العنوان أو التصنيفات
         if disambiguation_checker.check():
             print(f"تم تجاهل الصفحة: {page.title()} (صفحة توضيح)")
             return
 
+        # تجاهل القوالب باستخدام تعبير منتظم
         text_without_templates = re.sub(r'{{.*?}}', '', original_text, flags=re.DOTALL)
+
+        # البحث عن التصنيفات ووضع قالب {{بذرة}} قبلها
         category_pattern = r'\[\[تصنيف:.*?\]\]'
         categories_in_text = re.findall(category_pattern, original_text)
 
+        # إذا وُجدت التصنيفات، نضع قالب البذرة قبل التصنيفات
         if categories_in_text:
             text_before_categories = re.split(category_pattern, original_text, maxsplit=1)[0]
             text_with_categories = "\n".join(categories_in_text)
             new_text = text_before_categories.strip() + '\n\n{{بذرة}}\n\n' + text_with_categories
         else:
+            # إذا لم توجد تصنيفات، إضافة قالب البذرة في النهاية
             new_text = original_text.strip() + '\n\n{{بذرة}}'
 
+        # التحقق من شروط الحجم والكلمات وغياب قالب بذرة
         word_count = len(text_without_templates.split())
         size_in_bytes = len(text_without_templates.encode('utf-8'))
 
-        threshold = 100
+        threshold = 100  # يجب تحديد الحد الأدنى بناءً على متطلباتك
         if (word_count / 200 * 40) + (size_in_bytes / 3000 * 60) < threshold and not re.search(r'{{بذرة\b', original_text):
+            # تحديث نص الصفحة
             page.text = new_text
             page.save(summary='بوت: إضافة قالب بذرة - تجريبي')
             print(f"تمت إضافة قالب بذرة إلى الصفحة: {page.title()}")
@@ -86,13 +111,9 @@ def process_page(page):
         print(f"حدث خطأ أثناء معالجة الصفحة {page.title()}: {e}")
 
 
-def process_pages_concurrently(pages, max_threads=5):
-    with ThreadPoolExecutor(max_threads) as executor:
-        executor.map(process_page, pages)
+# تحميل قائمة التجاهل
+ignore_list = load_ignore_list("target_pages.json")
 
-
-# جمع المقالات من نطاق المقالات (النطاق الرئيسي)
-pages = list(site.allpages(namespace=0))
-
-# تشغيل المعالجة متعددة الخيوط
-process_pages_concurrently(pages, max_threads=10)
+# معالجة جميع المقالات في نطاق المقالات (النطاق الرئيسي)
+for page in site.allpages(namespace=0):
+    process_page(page, ignore_list)
