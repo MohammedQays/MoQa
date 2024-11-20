@@ -26,14 +26,23 @@ class Disambiguation:
                     return True
         return False
 
-    def have_molecular_formula_set_index_articles(self):
-        categories = self.page.categories()
-        list_category = ['صفحات مجموعات صيغ كيميائية مفهرسة']
-        for cat in categories:
-            for needed_cat in list_category:
-                if needed_cat in cat.title():
-                    return True
-        return False
+def have_molecular_formula_set_index_articles(self):
+    categories = self.page.categories()
+    # إضافة تصنيفات أخرى حسب الحاجة
+    list_category = [
+        'صفحات مجموعات صيغ كيميائية مفهرسة',
+        'كواكب صغيرة مسماة',
+        'كويكبات خلفية',
+        'حزام الكويكبات'
+    ]
+    
+    for cat in categories:
+        for needed_cat in list_category:
+            # إذا كان التصنيف المطلوب موجوداً في التصنيفات المرتبطة بالمقالة
+            if needed_cat in cat.title():
+                return True
+    return False
+
 
     def check_title(self):
         return bool(re.search(r"\(\s*(توضيح|disambiguation)\s*\)", self.page_title))
