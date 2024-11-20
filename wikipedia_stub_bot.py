@@ -80,10 +80,14 @@ def process_page(page):
         word_count = len(text_without_templates.split())
         size_in_bytes = len(text_without_templates.encode('utf-8'))
 
-        if (word_count / 300 * 40) + (size_in_bytes / 4000 * 60) < threshold and not re.search(r'{{بذرة\b', original_text):
+        # حساب المعادلة لتحديد ما إذا كانت الصفحة تحتاج إلى قالب بذرة
+        score = (word_count / 300 * 40) + (size_in_bytes / 4000 * 60)
+        threshold = 100  # تحديد قيمة عتبة (threshold) المناسبة
+
+        if score < threshold and not re.search(r'{{بذرة\b', original_text):
             # تحديث نص الصفحة
             page.text = new_text
-            page.save(summary='إضافة قالب بذرة - تجريبي')
+            page.save(summary='بوت:إضافة قالب بذرة - تجريبي')
             print(f"تمت إضافة قالب بذرة إلى الصفحة: {page.title()}")
         else:
             print(f"الصفحة {page.title()} لا تحتاج إلى تعديل.")
