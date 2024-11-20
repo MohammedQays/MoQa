@@ -1,9 +1,7 @@
 import pywikibot
 import re
 import wikitextparser as wtp
-from datetime import datetime
-import json
-from random import shuffle
+from datetime import datetime, timedelta
 
 # تعريف الموقع (اللغة المختارة هي العربية ar)
 site = pywikibot.Site('ar', 'wikipedia')
@@ -17,6 +15,7 @@ class Disambiguation:
         self.list_of_templates = ["توضيح", "Disambig", "صفحة توضيح", "Disambiguation"]
 
     def check(self, logic="or"):
+        # التحقق باستخدام المنطق المطلوب
         return (self.check_text() or self.check_title()) or self.have_molecular_formula_set_index_articles()
 
     def check_text(self):
@@ -39,14 +38,9 @@ class Disambiguation:
     def check_title(self):
         return bool(re.search(r"\(\s*(توضيح|disambiguation)\s*\)", self.page_title))
 
-
-def process_page(page, ignored_pages):
+# البحث عن المقالات
+def process_page(page):
     try:
-        # تجاهل الصفحة إذا كانت في القائمة المستهدفة
-        if page.title() in ignored_pages:
-            print(f"تم تجاهل الصفحة {page.title()} لأنها موجودة في target_pages.json.")
-            return
-
         # تجاهل الصفحة إذا كانت تحويلة
         if page.isRedirectPage():
             print(f"تم تجاهل الصفحة {page.title()} لأنها تحويلة.")
@@ -57,6 +51,16 @@ def process_page(page, ignored_pages):
         # تجاهل المقالات التي تحتوي على تحويل في المتن
         if re.match(r'#تحويل\s*\[\[.*?\]\]', original_text, re.IGNORECASE):
             print(f"تجاهل الصفحة {page.title()} لأنها تحتوي على تحويل في المتن.")
+            return
+
+        # التحقق من تاريخ إنشاء المقالة
+        oldest_revision_date = page.oldest_revision.timestamp
+        current_time = datetime.utcnow()  # الحصول على الوقت الحالي (بتوقيت UTC)
+        time_difference = current_time - oldest_revision_date
+
+        # التحقق إذا مر أكثر من 3 ساعات على إنشاء المقالة
+        if time_difference < timedelta(hours=3):
+            print(f"تم تجاهل الصفحة {page.title()} لأنها تم إنشاؤها منذ أقل من 3 ساعات.")
             return
 
         disambiguation_checker = Disambiguation(page, page.title(), original_text)
@@ -100,27 +104,6 @@ def process_page(page, ignored_pages):
     except Exception as e:
         print(f"حدث خطأ أثناء معالجة الصفحة {page.title()}: {e}")
 
-
-# قراءة المقالات الموجودة في target_pages.json
-def load_ignored_pages(filename="target_pages.json"):
-    try:
-        with open(filename, 'r', encoding='utf-8') as f:
-            ignored_pages = json.load(f)
-        return set(ignored_pages)  # استخدام مجموعة (set) لضمان السرعة في البحث
-    except Exception as e:
-        print(f"خطأ في تحميل ملف {filename}: {e}")
-        return set()
-
-
-# جلب جميع المقالات في نطاق المقالات (النطاق الرئيسي)
-pages = list(site.allpages(namespace=0))
-
-# خلط المقالات عشوائيًا
-shuffle(pages)
-
-# تحميل المقالات المستهدفة من target_pages.json
-ignored_pages = load_ignored_pages("target_pages.json")
-
-# معالجة المقالات بعد ترتيبها بشكل عشوائي
-for page in pages:
-    process_page(page, ignored_pages)
+# معالجة جميع المقالات في نطاق المقالات (النطاق الرئيسي)
+for page in site.allpages(namespace=0):
+    process_page(page)
