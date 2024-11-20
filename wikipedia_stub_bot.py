@@ -53,14 +53,12 @@ def process_page(page):
 
         # تجاهل المقالات التي تحتوي على تحويل في المتن
         if re.match(r'#تحويل\s*\[\[.*?\]\]', original_text, re.IGNORECASE):
-            print(f"تجاهل الصفحة {page.title()} لأنها تحتوي على تحويل في المتن.")
             return
 
         disambiguation_checker = Disambiguation(page, page.title(), original_text)
         
         # تجاهل صفحات التوضيح بناءً على النص أو العنوان أو التصنيفات
         if disambiguation_checker.check():
-            print(f"تم تجاهل الصفحة: {page.title()} (صفحة توضيح)")
             return
 
         # تجاهل القوالب باستخدام تعبير منتظم
@@ -84,7 +82,7 @@ def process_page(page):
         size_in_bytes = len(text_without_templates.encode('utf-8'))
 
         # حساب المعادلة لتحديد ما إذا كانت الصفحة تحتاج إلى قالب بذرة
-        score = (word_count / 200 * 40) + (size_in_bytes / 4000 * 60)
+        score = (word_count / 300 * 40) + (size_in_bytes / 4000 * 60)
         threshold = 100  # تحديد قيمة عتبة (threshold) المناسبة
 
         if score < threshold and not re.search(r'{{بذرة\b', original_text):
