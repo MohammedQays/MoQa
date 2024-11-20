@@ -2,6 +2,8 @@ import pywikibot
 import re
 import wikitextparser as wtp
 from datetime import datetime
+import json
+from random import shuffle
 
 # تعريف الموقع (اللغة المختارة هي العربية ar)
 site = pywikibot.Site('ar', 'wikipedia')
@@ -15,7 +17,6 @@ class Disambiguation:
         self.list_of_templates = ["توضيح", "Disambig", "صفحة توضيح", "Disambiguation"]
 
     def check(self, logic="or"):
-        # التحقق باستخدام المنطق المطلوب
         return (self.check_text() or self.check_title()) or self.have_molecular_formula_set_index_articles()
 
     def check_text(self):
@@ -38,9 +39,14 @@ class Disambiguation:
     def check_title(self):
         return bool(re.search(r"\(\s*(توضيح|disambiguation)\s*\)", self.page_title))
 
-# البحث عن المقالات
-def process_page(page):
+
+def process_page(page, ignored_pages):
     try:
+        # تجاهل الصفحة إذا كانت في القائمة المستهدفة
+        if page.title() in ignored_pages:
+            print(f"تم تجاهل الصفحة {page.title()} لأنها موجودة في target_pages.json.")
+            return
+
         # تجاهل الصفحة إذا كانت تحويلة
         if page.isRedirectPage():
             print(f"تم تجاهل الصفحة {page.title()} لأنها تحويلة.")
@@ -94,6 +100,27 @@ def process_page(page):
     except Exception as e:
         print(f"حدث خطأ أثناء معالجة الصفحة {page.title()}: {e}")
 
-# معالجة جميع المقالات في نطاق المقالات (النطاق الرئيسي)
-for page in site.allpages(namespace=0):
-    process_page(page)
+
+# قراءة المقالات الموجودة في target_pages.json
+def load_ignored_pages(filename="target_pages.json"):
+    try:
+        with open(filename, 'r', encoding='utf-8') as f:
+            ignored_pages = json.load(f)
+        return set(ignored_pages)  # استخدام مجموعة (set) لضمان السرعة في البحث
+    except Exception as e:
+        print(f"خطأ في تحميل ملف {filename}: {e}")
+        return set()
+
+
+# جلب جميع المقالات في نطاق المقالات (النطاق الرئيسي)
+pages = list(site.allpages(namespace=0))
+
+# خلط المقالات عشوائيًا
+shuffle(pages)
+
+# تحميل المقالات المستهدفة من target_pages.json
+ignored_pages = load_ignored_pages("target_pages.json")
+
+# معالجة المقالات بعد ترتيبها بشكل عشوائي
+for page in pages:
+    process_page(page, ignored_pages)
