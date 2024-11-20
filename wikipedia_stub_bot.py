@@ -26,25 +26,23 @@ class Disambiguation:
                     return True
         return False
 
-def have_molecular_formula_set_index_articles(self):
-    categories = self.page.categories()
-    # إضافة تصنيفات أخرى حسب الحاجة
-    list_category = [
-        'صفحات مجموعات صيغ كيميائية مفهرسة',
-        'كواكب صغيرة مسماة',
-        'كويكبات خلفية',
-        'حزام الكويكبات'
-    ]
-    
-    for cat in categories:
-        for needed_cat in list_category:
-            # إذا كان التصنيف المطلوب موجوداً في التصنيفات المرتبطة بالمقالة
-            if needed_cat in cat.title():
-                return True
-    return False
-
+    def have_molecular_formula_set_index_articles(self):
+        categories = self.page.categories()
+        list_category = [
+            'صفحات مجموعات صيغ كيميائية مفهرسة',
+            'كواكب صغيرة مسماة',
+            'كويكبات خلفية',
+            'حزام الكويكبات'
+        ]
+        
+        for cat in categories:
+            for needed_cat in list_category:
+                if needed_cat in cat.title():
+                    return True
+        return False
 
     def check_title(self):
+        # التحقق من العنوان باستخدام تعبير عادي لاكتشاف وجود كلمات "توضيح" أو "disambiguation"
         return bool(re.search(r"\(\s*(توضيح|disambiguation)\s*\)", self.page_title))
 
 # البحث عن المقالات
@@ -60,16 +58,6 @@ def process_page(page):
         # تجاهل المقالات التي تحتوي على تحويل في المتن
         if re.match(r'#تحويل\s*\[\[.*?\]\]', original_text, re.IGNORECASE):
             print(f"تجاهل الصفحة {page.title()} لأنها تحتوي على تحويل في المتن.")
-            return
-
-        # التحقق من تاريخ إنشاء المقالة
-        oldest_revision_date = page.oldest_revision.timestamp
-        current_time = datetime.utcnow()  # الحصول على الوقت الحالي (بتوقيت UTC)
-        time_difference = current_time - oldest_revision_date
-
-        # التحقق إذا مر أكثر من 3 ساعات على إنشاء المقالة
-        if time_difference < timedelta(hours=3):
-            print(f"تم تجاهل الصفحة {page.title()} لأنها تم إنشاؤها منذ أقل من 3 ساعات.")
             return
 
         disambiguation_checker = Disambiguation(page, page.title(), original_text)
