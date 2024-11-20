@@ -60,6 +60,16 @@ def process_page(page):
             print(f"تجاهل الصفحة {page.title()} لأنها تحتوي على تحويل في المتن.")
             return
 
+        # التحقق من تاريخ إنشاء المقالة
+        oldest_revision_date = page.oldest_revision.timestamp
+        current_time = datetime.utcnow()  # الحصول على الوقت الحالي (بتوقيت UTC)
+        time_difference = current_time - oldest_revision_date
+
+        # التحقق إذا مر أكثر من 3 ساعات على إنشاء المقالة
+        if time_difference < timedelta(hours=3):
+            print(f"تم تجاهل الصفحة {page.title()} لأنها تم إنشاؤها منذ أقل من 3 ساعات.")
+            return
+
         disambiguation_checker = Disambiguation(page, page.title(), original_text)
         
         # تجاهل صفحات التوضيح بناءً على النص أو العنوان أو التصنيفات
@@ -101,6 +111,13 @@ def process_page(page):
     except Exception as e:
         print(f"حدث خطأ أثناء معالجة الصفحة {page.title()}: {e}")
 
-# معالجة جميع المقالات في نطاق المقالات (النطاق الرئيسي)
-for page in site.allpages(namespace=0):
-    process_page(page)
+# فحص المقالات بالعناوين التي تبدأ بحروف عربية فقط
+def filter_arabic_pages():
+    for page in site.allpages(namespace=0):
+        # التحقق من أن العنوان يبدأ بحرف عربي
+        if page.title()[0].isalpha() and not re.match(r'^[\u0600-\u06FF]', page.title()):
+            continue  # تجاهل الصفحات التي لا تبدأ بحروف عربية
+        process_page(page)
+
+# معالجة المقالات
+filter_arabic_pages()
