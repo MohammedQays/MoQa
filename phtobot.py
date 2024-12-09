@@ -18,7 +18,7 @@ for page in category.articles():
 
             # حفظ التعديلات
             page.text = new_text
-            page.save(summary="استبدال صورة العلم بعلم الثورة السورية")
+            page.save(summary="استبدال صورة العلم")
             print(f"تم تعديل الصفحة: {page.title()}")
         else:
             print(f"لم يتم العثور على الصورة المستهدفة في الصفحة: {page.title()}")
