@@ -4,7 +4,7 @@ import pywikibot
 site = pywikibot.Site("ar", "wikipedia")
 
 # تصنيف القوالب
-category = pywikibot.Category(site, "تصنيف:قوالب بذرة أعلام سوريا حسب المهنة")
+category = pywikibot.Category(site, "تصنيف:قوالب رسائل بذرة أفغانستان")
 
 # البحث عن القوالب ضمن التصنيف
 for page in category.articles():
@@ -14,7 +14,7 @@ for page in category.articles():
 
         # استبدال الصورة
         if "Flag of Syria.svg" in text:
-            new_text = text.replace("Flag of Syria.svg", "Flag of the Syrian revolution.svg")
+            new_text = text.replace("Flag of Afghanistan (2013–2021).svg", "Flag of the Taliban.svg")
 
             # حفظ التعديلات
             page.text = new_text
