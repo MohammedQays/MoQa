@@ -7,6 +7,23 @@ from datetime import datetime
 site = pywikibot.Site('ar', 'wikipedia')
 site.login()
 
+# التصنيفات المستبعدة
+excluded_categories = [
+    'صفحات مجموعات صيغ كيميائية مفهرسة',
+    'كواكب صغيرة مسماة',
+    'تحويلات من لغات بديلة',
+    'تحويلات علم الفلك'
+]
+
+# ملف لحفظ المقالات المستبعدة
+ignored_pages_file = "ignored_pages.txt"
+
+# فتح الملف لتسجيل المقالات المستبعدة
+def log_ignored_page(page_title):
+    with open(ignored_pages_file, "a", encoding="utf-8") as file:
+        file.write(f"{page_title}\n")
+        print(f"تم إضافة {page_title} إلى ملف المقالات المستبعدة.")
+
 class Disambiguation:
     def __init__(self, page, page_title, page_text):
         self.page = page
@@ -14,9 +31,8 @@ class Disambiguation:
         self.page_text = str(page_text).lower()
         self.list_of_templates = ["توضيح", "Disambig", "صفحة توضيح", "Disambiguation"]
 
-    def check(self, logic="or"):
-        # التحقق باستخدام المنطق المطلوب
-        return (self.check_text() or self.check_title()) or self.have_molecular_formula_set_index_articles()
+    def check(self):
+        return self.check_text() or self.check_title()
 
     def check_text(self):
         parsed = wtp.parse(self.page_text)
@@ -26,26 +42,22 @@ class Disambiguation:
                     return True
         return False
 
-    def have_molecular_formula_set_index_articles(self):
-        categories = self.page.categories()
-        list_category = [
-            'صفحات مجموعات صيغ كيميائية مفهرسة',
-            'كواكب صغيرة مسماة'
-        ]
-        for cat in categories:
-            for needed_cat in list_category:
-                if needed_cat in cat.title():
-                    return True
-        return False
-
     def check_title(self):
         return bool(re.search(r"\(\s*(توضيح|disambiguation)\s*\)", self.page_title))
 
 # البحث عن المقالات
 def process_page(page):
     try:
+        # التحقق من التصنيفات المستبعدة
+        page_categories = {cat.title(with_ns=False) for cat in page.categories()}
+        if any(excluded_category in page_categories for excluded_category in excluded_categories):
+            log_ignored_page(page.title())  # إضافة المقالة إلى الملف المستبعد
+            print(f"تم تخطي الصفحة {page.title()} لأنها تنتمي إلى تصنيف مستبعد.")
+            return
+
         # تجاهل الصفحة إذا كانت تحويلة
         if page.isRedirectPage():
+            log_ignored_page(page.title())  # إضافة المقالة إلى الملف المستبعد
             print(f"تم تجاهل الصفحة {page.title()} لأنها تحويلة.")
             return
 
@@ -53,12 +65,14 @@ def process_page(page):
 
         # تجاهل المقالات التي تحتوي على تحويل في المتن
         if re.match(r'#تحويل\s*\[\[.*?\]\]', original_text, re.IGNORECASE):
+            log_ignored_page(page.title())  # إضافة المقالة إلى الملف المستبعد
             return
 
         disambiguation_checker = Disambiguation(page, page.title(), original_text)
-        
-        # تجاهل صفحات التوضيح بناءً على النص أو العنوان أو التصنيفات
+
+        # تجاهل صفحات التوضيح
         if disambiguation_checker.check():
+            log_ignored_page(page.title())  # إضافة المقالة إلى الملف المستبعد
             return
 
         # تجاهل القوالب باستخدام تعبير منتظم
@@ -95,6 +109,6 @@ def process_page(page):
     except Exception as e:
         print(f"حدث خطأ أثناء معالجة الصفحة {page.title()}: {e}")
 
-# معالجة جميع المقالات في نطاق المقالات (النطاق الرئيسي)
+# معالجة جميع المقالات في نطاق المقالات (النطاق الرئيسي) مع تخطي المقالات المستبعدة مسبقًا
 for page in site.allpages(namespace=0):
     process_page(page)
