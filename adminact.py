@@ -1,6 +1,7 @@
 import pywikibot
 from datetime import datetime, timedelta, timezone
 
+# 🟢 قاموس ثابت يحتوي على تاريخ حصول الإداريين على الصلاحيات
 admin_promotion_dates = {
     "Ajwaan": "2019-09-29",
     "Avicenno": "2015-08-24",
@@ -35,12 +36,15 @@ def fetch_admins():
 def count_admin_actions(username, days, namespaces=None):
     """حساب عدد الأفعال الإدارية خلال مدة محددة"""
     site = pywikibot.Site("ar", "wikipedia")
+    # التاريخ الأحدث: الآن
     end_date = datetime.now(timezone.utc)
+    # التاريخ الأقدم: الآن - الأيام المطلوبة
     start_date = end_date - timedelta(days=days)
     
     log_types = ["block", "protect", "delete", "move", "rights"]
     total_actions = 0
     
+    # بالنسبة لدالة logevents، نمرر start=end_date (الأحدث) وend=start_date (الأقدم)
     for log_type in log_types:
         log_events = site.logevents(logtype=log_type, user=username, start=end_date, end=start_date)
         if namespaces is not None:
@@ -95,6 +99,11 @@ def generate_table(admins):
     table_rows = ""
     for admin in admins:
         username = admin['name']
+        
+        # استبعاد "مستخدم:مرشح الإساءة"
+        if username == "مرشح الإساءة":
+            continue
+        
         registration_date = admin_promotion_dates.get(username, "غير معروف")
         
         # حساب عدد الأفعال الإدارية العامة خلال 30 يوم و6 أشهر
