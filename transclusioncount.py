@@ -1,4 +1,3 @@
-#! ~/venv/bin/python3
 import toolforge
 import pywikibot
 import time
@@ -8,7 +7,7 @@ from math import log10, floor
 class settings:
 	lang = 'arwiki'
 	rootpage = "Module:Transclusion count/"
-	editsumm = "[[وب:بوت|بوت]]: تحديث الصفحة."
+	editsumm = "[[وب:بوت|بوت]]: تحديث."
 	debug = "no"
 	sigfigs = 2
 
@@ -46,36 +45,8 @@ HAVING COUNT(*) > 2000
 LIMIT 10000;
 '''
 
-arabic_to_english = {
-    "أ": "A", "إ": "A", "آ": "A",
-    "ب": "B",
-    "ت": "T", "ث": "T",
-    "ج": "J",
-    "ح": "H",
-    "خ": "K",
-    "د": "D", "ذ": "D",
-    "ر": "R",
-    "ز": "Z",
-    "س": "S", "ش": "S",
-    "ص": "S",
-    "ض": "D",
-    "ط": "T",
-    "ظ": "Z",
-    "ع": "A",
-    "غ": "G",
-    "ف": "F",
-    "ق": "K",
-    "ك": "K",
-    "ل": "L",
-    "م": "M",
-    "ن": "N",
-    "هـ": "H",
-    "و": "W",
-    "ي": "Y"
-}
-
 if settings.debug != "no":
-	print("Query:\n" + query1 + "\n" + query2)
+	print("Query:\n" + query)
 
 connectSuccess = False
 tries = 0
@@ -122,32 +93,60 @@ if settings.debug != "no":
 		print("Error writing to file: %s" % (e))
 	print("\nBuilding output...")
 
-output = {letter: [] for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"}
-output["other"] = []
 
-for row in result1 + result2:
+output = {
+    "A": [], "B": [], "C": [], "D": [], "E": [], "F": [], "G": [], "H": [], "I": [], "J": [], "K": [], "L": [], "M": [],
+    "N": [], "O": [], "P": [], "Q": [], "R": [], "S": [], "T": [], "U": [], "V": [], "W": [], "X": [], "Y": [], "Z": [],
+    "أ": [], "ا": [], "إ": [], "ب": [], "ت": [], "ث": [], "ج": [], "ح": [], "خ": [], "د": [], "ذ": [], "ر": [], "ز": [], "س": [], "ش": [],
+    "ص": [], "ض": [], "ط": [], "ظ": [], "ع": [], "غ": [], "ف": [], "ق": [], "ك": [], "ل": [], "م": [], "ن": [], "ه": [],
+    "و": [], "ي": [], "other": []
+}
+
+for row in result1:
 	try:
 		lt_title = row[0].decode()
 	except:
 		lt_title = str(row[0])
 	index_letter = lt_title[0]
-	if index_letter in arabic_to_english:
-		index_letter = arabic_to_english[index_letter]
-	if index_letter not in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
-		index_letter = "other"
-	uses = round(row[1], -int(floor(log10(row[1]))) + (settings.sigfigs - 1 if row[1] < 100000 else settings.sigfigs))
-	table_row = '''["%s"] = %i,''' % (lt_title.replace("\\", "\\\\").replace('"', '\"'), uses)
-	output[index_letter].append(table_row)
+	if row[1] < 100000: #Use an extra sigfig for very large counts
+		sigfigs = settings.sigfigs - 1
+	else:
+		sigfigs = settings.sigfigs
+	uses = round(row[1], -int(floor(log10(row[1])))+sigfigs)
+	table_row = '''["%s"] = %i,''' % (lt_title.replace("\\", "\\\\").replace('"', '\\"'), uses)
+	try:
+		output[index_letter].append(table_row)
+	except:
+		output["other"].append(table_row)
+
+for row in result2:
+	try:
+		lt_title = row[0].decode()
+	except:
+		lt_title = str(row[0])
+	index_letter = lt_title[0]
+	if row[1] < 100000: #Use an extra sigfig for very large counts
+		sigfigs = settings.sigfigs - 1
+	else:
+		sigfigs = settings.sigfigs
+	uses = round(row[1], -int(floor(log10(row[1])))+sigfigs)
+	table_row = '''["Module:%s"] = %i,''' % (lt_title.replace("\\", "\\\\").replace('"', '\\"'), uses)
+	try:
+		output[index_letter].append(table_row)
+	except:
+		output["other"].append(table_row)
 
 for section in output:
 	report = pywikibot.Page(wiki, report_title + section)
+	old_text = report.text
 	report.text = report_template % ('\n'.join(output[section]))
 	if settings.debug == "no":
+		# print("Writing " + report_title + section)
 		try:
 			report.save(settings.editsumm)
 		except Exception as e:
-			print("Error at %s: %s" % (time.ctime(), e))
+			print("Error at %s: %s" % (time.ctime(),e))
 	else:
 		print("== " + report_title + section + " ==\n\n" + report.text)
-
+		
 print("\nDone at %s!" % (time.ctime()))
