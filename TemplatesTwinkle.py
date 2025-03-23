@@ -6,7 +6,7 @@ import toolforge
 class settings:
     lang = 'enwiki'  # قاعدة البيانات المصدر (ويكيبيديا الإنجليزية)
     user_page = "مستخدم:Mohammed Qays/بوت"  # الصفحة الهدف للتحديث
-    editsumm = "[[وب:بوت|بوت]]: تحديث تلقائي"  # ملخص التعديل
+    editsumm = "[[وب:بوت|بوت]]: تحديث تلقائي."  # ملخص التعديل
     debug = "no"  # عند التعيين على "no"، يتم تحديث الصفحة فعليًا
 
 # استعلام SQL لجلب القوالب من ويكيبيديا الإنجليزية
@@ -79,7 +79,7 @@ def update_user_page():
     
     # إضافة تسلسل رقمي وحالة {{لمذ}} للقوالب غير المنشأة
     for index, template in enumerate(uncreated_templates, 1):
-        content += "|-\n| {} || {} || {{لمذ}}\n".format(index, template)
+        content += "|-\n| {} || {} || {{{{لمذ}}}}\n".format(index, template)
     
     content += "|}\n"
     
@@ -97,7 +97,7 @@ def update_user_page():
         
         # إضافة تسلسل رقمي وحالة {{تم}} للقوالب المنشأة
         for index, template_link in enumerate(created_templates[i:end], 1):
-            content += "|-\n| {} || {} || {{تم}}\n".format(index, template_link)
+            content += "|-\n| {} || {} || {{{{تم}}}}\n".format(index, template_link)
         
         content += "|}\n"
     
