@@ -6,7 +6,7 @@ import toolforge
 class settings:
     lang = 'enwiki'  # قاعدة البيانات المصدر (ويكيبيديا الإنجليزية)
     user_page = "مستخدم:Mohammed Qays/بوت"  # الصفحة الهدف للتحديث
-    editsumm = "[[وب:بوت|بوت]]: تحديث تلقائي لقوالب لمح البصر."  # ملخص التعديل
+    editsumm = "[[وب:بوت|بوت]]: تحديث تلقائي"  # ملخص التعديل
     debug = "no"  # عند التعيين على "no"، يتم تحديث الصفحة فعليًا
 
 # استعلام SQL لجلب القوالب من ويكيبيديا الإنجليزية
@@ -35,6 +35,10 @@ def check_template_exists(template_link, site):
     if isinstance(template_link, bytes):
         template_link = template_link.decode('utf-8')
     
+    # إزالة 'b' و '' من القيم إذا كانت من نوع str
+    if isinstance(template_link, str):
+        template_link = template_link.strip("b'")  
+    
     if template_link.startswith('[[Template:') and template_link.endswith(']]'):
         template_name = template_link[len('[[Template:'):-2]
         page = pywikibot.Page(site, f"Template:{template_name}")
@@ -49,18 +53,53 @@ def update_user_page():
     
     templates_result = execute_query()  # جلب القوالب من ويكيبيديا الإنجليزية
     
-    # إنشاء جدول ويكي لتخزين النتائج
-    content = "== تحديث قائمة القوالب ==\n"
-    content += "{| class='wikitable sortable'\n"
-    content += "|-\n! القالب !! الحالة\n"
+    # تقسيم القوالب إلى قوالب تم إنشاؤها وغير منشأة
+    created_templates = []
+    uncreated_templates = []
     
     for row in templates_result:
         template_link = row[0]  # مثال: [[Template:اسم القالب]]
+        
+        # التحقق من نوع البيانات وإزالة 'b' و ''
+        if isinstance(template_link, bytes):
+            template_link = template_link.decode('utf-8')
+        template_link = template_link.strip("b'")  # إزالة b' و '
+        
         exists = check_template_exists(template_link, site)
-        status = "{{تم}}" if exists else "{{لمذ}}"
-        content += "|-\n| {} || {}\n".format(template_link, status)
+        
+        if exists:
+            created_templates.append(template_link)
+        else:
+            uncreated_templates.append(template_link)
     
-    content += "|}"
+    # بناء المحتوى
+    content = "== القوالب غير المنشأة ==\n"
+    content += "{| class='wikitable sortable'\n"
+    content += "|-\n! ت !! القالب !! الحالة\n"
+    
+    # إضافة تسلسل رقمي وحالة {{لمذ}} للقوالب غير المنشأة
+    for index, template in enumerate(uncreated_templates, 1):
+        content += "|-\n| {} || {} || {{لمذ}}\n".format(index, template)
+    
+    content += "|}\n"
+    
+    # ترتيب القوالب المنشأة حسب الحروف الأبجدية
+    created_templates.sort()  # ترتيب القوالب أبجدياً
+    
+    # تقسيم القوالب المنشأة إلى مجموعات من 100 قالب
+    total_templates = len(created_templates)
+    for i in range(0, total_templates, 100):
+        start = i + 1
+        end = min(i + 100, total_templates)
+        content += f"\n== القوالب من {start} إلى {end} ==\n"
+        content += "{| class='wikitable sortable'\n"
+        content += "|-\n! ت !! القالب !! الحالة\n"
+        
+        # إضافة تسلسل رقمي وحالة {{تم}} للقوالب المنشأة
+        for index, template_link in enumerate(created_templates[i:end], 1):
+            content += "|-\n| {} || {} || {{تم}}\n".format(index, template_link)
+        
+        content += "|}\n"
     
     if settings.debug == "no":
         page.put(content, summary=settings.editsumm)
