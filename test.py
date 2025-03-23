@@ -35,6 +35,8 @@ def check_template_exists(template_link, site):
     if isinstance(template_link, bytes):
         template_link = template_link.decode('utf-8')
     
+    template_link = template_link.strip("b'")
+    
     if template_link.startswith('[[Template:') and template_link.endswith(']]'):
         template_name = template_link[len('[[Template:'):-2]
         page = pywikibot.Page(site, f"Template:{template_name}")
@@ -62,6 +64,9 @@ def update_user_page():
         
         for row in templates_result[i:end]:
             template_link = row[0]  # مثال: [[Template:اسم القالب]]
+            if isinstance(template_link, bytes):
+                template_link = template_link.decode('utf-8')
+            template_link = template_link.strip("b'")
             exists = check_template_exists(template_link, site)
             status = "{{تم}}" if exists else "{{لمذ}}"
             content += "|-\n| {} || {}\n".format(template_link, status)
