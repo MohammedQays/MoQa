@@ -1,4 +1,3 @@
-# بوت احصائيات الإداريين محدث في 25 - 2- 2025
 import requests
 import pywikibot
 from datetime import datetime, timedelta, timezone
@@ -18,6 +17,7 @@ admin_promotion_dates = {
     "Nehaoua": "2020-12-06",
     "أبو هشام": "2023-04-02",
     "أحمد ناجي": "2023-01-04",
+    "أسامة الساعدي": "2013-02-04",
     "إسلام": "2018-02-10",
     "باسم": "2010-06-04",
     "علاء": "2016-08-14",
@@ -29,6 +29,11 @@ admin_promotion_dates = {
     "محمد أحمد عبد الفتاح": "2008-09-03",
     "ولاء": "2013-01-20"
 }
+
+# تحديد الفترة الزمنية
+end_date = datetime.now(timezone.utc)
+start_date_30 = end_date - timedelta(days=30)
+start_date_180 = end_date - timedelta(days=180)
 
 def format_date(date_string):
     """
@@ -44,53 +49,23 @@ def fetch_admins():
     site = pywikibot.Site("ar", "wikipedia")
     return list(site.allusers(group="sysop"))
 
-# دوال لتحديد حدود الفترات بناءً على تاريخ التحديث
-def first_day_of_month(date):
-    return date.replace(day=1)
-
-def first_day_of_previous_month(date):
-    if date.month == 1:
-        return date.replace(year=date.year - 1, month=12, day=1)
-    else:
-        return date.replace(month=date.month - 1, day=1)
-
-def first_day_next_month(date):
-    if date.month == 12:
-        return date.replace(year=date.year + 1, month=1, day=1)
-    else:
-        return date.replace(month=date.month + 1, day=1)
-
-def first_day_six_months_ago(date):
+def count_specific_log_actions(username, days, log_type, action=None):
     """
-    للحصول على أول يوم للشهر الذي يكون 5 شهور قبل شهر التحديث،
-    بحيث تغطي الفترة 6 شهور كاملة (مثلاً، إذا كان التحديث في فبراير 2025، 
-    سيكون البداية 1 سبتمبر 2024).
-    """
-    month = date.month - 5
-    year = date.year
-    if month < 1:
-        month += 12
-        year -= 1
-    return date.replace(year=year, month=month, day=1)
-
-# دوال لحساب الأفعال بين تاريخين
-def count_admin_actions_between(username, start_dt, end_dt, namespaces=None):
-    """
-    حساب عدد الأفعال الإدارية للمستخدم بين تاريخي البداية والنهاية
+    حساب عدد أفعال محددة في سجلات الأحداث خلال فترة زمنية معينة
     """
     site = pywikibot.Site("ar", "wikipedia")
-    log_types = ["block", "protect", "delete", "move", "merge", "rights"]
-    total_actions = 0
-    for log_type in log_types:
-        log_events = site.logevents(logtype=log_type, user=username, start=end_dt, end=start_dt)
-        if namespaces is not None:
-            log_events = [event for event in log_events if event.get("namespace") in namespaces]
-        total_actions += len(list(log_events))
-    return total_actions
+    end_dt = datetime.now(timezone.utc)
+    start_dt = end_dt - timedelta(days=days)
+    log_events = site.logevents(logtype=log_type, user=username, start=end_dt, end=start_dt)
+    
+    if action:
+        return len([event for event in log_events if event.get('action') == action])
+    return len(list(log_events))
 
-def count_admin_edits_between(username, start_dt, end_dt, filter_id=225, namespace=None):
+def count_admin_edits_with_abuse_filter(username, days=180, filter_id=225, namespace=None):
     """
-    حساب عدد التعديلات في نطاق ويكيبيديا خلال الفترة المحددة باستخدام مرشح الإساءة.
+    حساب عدد التعديلات في نطاق ويكيبيديا خلال الفترة (days)
+    باستخدام مرشح الإساءة (filter_id) والمجال (namespace).
     """
     url = "https://ar.wikipedia.org/w/api.php"
     params = {
@@ -104,73 +79,112 @@ def count_admin_edits_between(username, start_dt, end_dt, filter_id=225, namespa
     }
     response = requests.get(url, params=params)
     data = response.json()
-    log_entries = data.get("query", {}).get("abuselog", [])
-    filtered_entries = [entry for entry in log_entries if start_dt.isoformat() <= entry["timestamp"] <= end_dt.isoformat()]
-    if namespace is not None:
-        site = pywikibot.Site("ar", "wikipedia")
-        filtered_entries = [entry for entry in filtered_entries if pywikibot.Page(site, entry.get("title", "")).namespace() == namespace]
-    return len(filtered_entries)
+    if "query" in data and "abuselog" in data["query"]:
+        log_entries = data["query"]["abuselog"]
+        filtered_entries = [
+            entry for entry in log_entries
+            if start_date_180.isoformat() <= entry["timestamp"] <= end_date.isoformat()
+        ]
+        if namespace is not None:
+            site = pywikibot.Site("ar", "wikipedia")
+            new_filtered_entries = []
+            for entry in filtered_entries:
+                title = entry.get("title", "")
+                if title:
+                    page = pywikibot.Page(site, title)
+                    if page.namespace() == namespace:
+                        new_filtered_entries.append(entry)
+            filtered_entries = new_filtered_entries
+        return len(filtered_entries)
+    return 0
 
 def get_last_edit(username):
     """جلب تاريخ آخر تعديل قام به المستخدم من مساهماته"""
     site = pywikibot.Site("ar", "wikipedia")
     user_contribs = site.usercontribs(user=username, total=1)
     for contrib in user_contribs:
-        if "timestamp" in contrib:
-            timestamp_obj = pywikibot.Timestamp.fromISOformat(contrib["timestamp"])
+        if 'timestamp' in contrib:
+            timestamp_obj = pywikibot.Timestamp.fromISOformat(contrib['timestamp'])
             return timestamp_obj.strftime("%Y-%m-%d")
     return "غير معروف"
 
 def generate_table(admins):
     """
-    إنشاء تقرير الإداريين بصيغة جدول ويكي وفق النموذج المطلوب.
-    يتم حساب:
-    - التفاعل الشهري: من أول يوم للشهر السابق حتى أول يوم للشهر الحالي.
-    - الأفعال الإدارية خلال 6 أشهر: من أول يوم للشهر (6 أشهر كاملة) حتى أول يوم من الشهر التالي لتاريخ التحديث.
-    - باقي الإحصائيات كما هو.
+    إنشاء تقرير الإداريين بصيغة جدول ويكي مع الأعمدة المطلوبة
     """
-    # تحديد تاريخ التحديث الحالي
-    update_date = datetime.now(timezone.utc)
-    
-    # الفترة الخاصة بالتفاعل الشهري (آخر شهر كامل)
-    monthly_end = first_day_of_month(update_date)            # أول يوم من شهر التحديث
-    monthly_start = first_day_of_previous_month(update_date)   # أول يوم من الشهر السابق
-    
-    # الفترة الخاصة بالأفعال خلال 6 أشهر
-    six_month_end = first_day_next_month(update_date)          # أول يوم من الشهر التالي لتاريخ التحديث
-    six_month_start = first_day_six_months_ago(update_date)      # أول يوم للشهر الذي يكون 5 شهور قبل شهر التحديث
-    
     header = """{{نسخ:مستخدم:Mohammed Qays/ملعب6}}"""
     rows = ""
     for admin in admins:
-        username = admin["name"]
+        username = admin['name']
         if username == "مرشح الإساءة":
             continue
+            
+        # الحصول على تاريخ الصلاحيات
         reg_date = admin_promotion_dates.get(username, "غير معروف")
         formatted_reg_date = format_date(reg_date) if reg_date != "غير معروف" else "غير معروف"
         
-        # حساب التفاعل الشهري من الشهر السابق (مثال: من 1 يناير 2025 إلى 1 فبراير 2025)
-        actions_month = count_admin_actions_between(username, monthly_start, monthly_end)
+        # حساب عدد الأفعال الإدارية لكل نوع
+        delete_count = count_specific_log_actions(username, 180, "delete")
+        reblock_count = count_specific_log_actions(username, 180, "block", "reblock")
+        reprotect_count = count_specific_log_actions(username, 180, "protect", "modify")
+        revision_delete_count = count_specific_log_actions(username, 180, "delete", "revision")
+        log_delete_count = count_specific_log_actions(username, 180, "delete", "event")
+        restore_count = count_specific_log_actions(username, 180, "delete", "restore")
+        unblock_count = count_specific_log_actions(username, 180, "block", "unblock")
+        unprotect_count = count_specific_log_actions(username, 180, "protect", "unprotect")
+        rights_count = count_specific_log_actions(username, 180, "rights")
         
-        # حساب الأفعال الإدارية خلال 6 أشهر (مثال: من 1 سبتمبر 2024 إلى 1 مارس 2025)
-        actions_six_month = count_admin_actions_between(username, six_month_start, six_month_end)
+        # حساب المجموع الكلي للأفعال الإدارية خلال 180 يوم
+        total_actions = (delete_count + reblock_count + reprotect_count + 
+                        revision_delete_count + log_delete_count + 
+                        restore_count + unblock_count + 
+                        unprotect_count + rights_count)
         
-        last_month_status = "{{Yes2}} نشط" if actions_month > 0 else "{{No2}} غير نشط"
-        last_six_status = "{{Yes2}} نشط" if actions_six_month > 119 else "{{No2}} غير نشط"
-        diverse_status = "{{Yes2}} نشط" if actions_six_month > 2 else "{{No2}} غير نشط"
+        # حساب أعمال مرشح الإساءة 225
+        abuse_filter_actions = count_admin_edits_with_abuse_filter(username, 180, 225)
         
-        ns_edits = count_admin_edits_between(username, six_month_start, six_month_end, filter_id=225, namespace=4)
+        # حساب الأفعال خلال 30 يوم فقط
+        actions_30 = count_specific_log_actions(username, 30, "delete") + \
+                    count_specific_log_actions(username, 30, "block") + \
+                    count_specific_log_actions(username, 30, "protect") + \
+                    count_specific_log_actions(username, 30, "rights")
+        
+        # تحديد حالة النشاط خلال 30 يوم
+        activity_30_status = "{{Yes2}} نشط" if actions_30 > 0 else "{{No2}} غير نشط"
+        
+        # تحديد حالة النشاط خلال 180 يوم (120 فعل)
+        activity_180_status = "{{Yes2}} نشط" if total_actions >= 120 else "{{No2}} غير نشط"
+        
+        # تحديد حالة النشاط المتنوع (3 أنواع مختلفة على الأقل)
+        diverse_categories = 0
+        if delete_count + revision_delete_count + log_delete_count + restore_count > 0:
+            diverse_categories += 1  # حذف/استعادة
+        if reblock_count + unblock_count > 0:
+            diverse_categories += 1  # منع/رفع منع
+        if reprotect_count + unprotect_count > 0:
+            diverse_categories += 1  # حماية/رفع حماية
+        if rights_count > 0:
+            diverse_categories += 1  # صلاحيات
+        
+        diverse_status = "{{Yes2}} نشط" if diverse_categories >= 2 else "{{No2}} غير نشط"
+        
+        # الحصول على تاريخ آخر تعديل
         last_edit = get_last_edit(username)
         formatted_last_edit = format_date(last_edit) if last_edit != "غير معروف" else "غير معروف"
         
-        rows += f"""\n|-\n|{{{{إداري|{username}}}}}||{formatted_reg_date}||{last_month_status}||{last_six_status}||{diverse_status}||{{{{Formatnum:{actions_six_month}}}}}||{{{{Formatnum:{ns_edits}}}}}||{formatted_last_edit}
+        rows += f"""
+|-
+| {{{{إداري|{username}}}}} || {formatted_reg_date} || {{{{Formatnum:{total_actions}}}}} || {{{{Formatnum:{abuse_filter_actions}}}}} || {activity_30_status} || {activity_180_status} || {diverse_status} || {formatted_last_edit}
 """
-    
     footer = """
 |}
 * "'''غَيرُ نَشط'''" تعني أن الإداري لم يقم بأي فعل إداري خلال الأيام الثلاثين الماضية.
-* "'''غَيرُ نَشط خلال الأشهر الستة الماضية'''" تعني أن الإداري لم يقم بأكثر من خمس وستين (120) فعلًا إداريًّا خلال الأشهر الستة الماضية.
+* "'''غَيرُ نَشط خلال الأشهر الستة الماضية'''" تعني أن الإداري لم يقم بأكثر من (120) فعلًا إداريًّا خلال الأشهر الستة الماضية.
 * "'''غَيرُ نَشط في حالة النشاط المُنوَّع'''" تعني أن الإداري لم يقم بأكثر من فعلين إداريين في أقسام مختلفة (حماية - حذف - منع - إخفاء - ...).
+<noinclude>
+[[تصنيف:ويكيبيديون إداريون]]
+[[تصنيف:تنظيم إدارة ويكيبيديا]]
+</noinclude>
 """
     return header + rows + footer
 
@@ -184,7 +198,7 @@ def update_wiki_page(page_title, content):
 def main():
     admins = fetch_admins()
     content = generate_table(admins)
-    update_wiki_page("مستخدم:Mohammed Qays/قائمة الإداريين", content)
+    update_wiki_page("قالب:قائمة الإداريين", content)
 
 if __name__ == "__main__":
     main()
