@@ -1,34 +1,41 @@
 import requests
+import json
 import pywikibot
 from datetime import datetime, timedelta, timezone
 
-# قاموس الإداريين مع تواريخ الحصول على الصلاحيات
-admin_promotion_dates = {
-    "Ajwaan": "2019-09-29",
-    "Avicenno": "2015-08-24",
-    "Dr-Taher": "2018-04-05",
-    "Elph": "2012-07-07",
-    "Ibrahim.ID": "2014-03-10",
-    "Meno25": "2007-02-20",
-    "Mervat": "2013-12-01",
-    "Michel Bakni": "2020-07-07",
-    "Mohamed Belgazem": "2022-09-15",
-    "Mohammed Qays": "2024-01-23",
-    "Nehaoua": "2020-12-06",
-    "أبو هشام": "2023-04-02",
-    "أحمد ناجي": "2023-01-04",
-    "أسامة الساعدي": "2013-02-04",
-    "إسلام": "2018-02-10",
-    "باسم": "2010-06-04",
-    "علاء": "2016-08-14",
-    "عمرو بن كلثوم": "2013-02-04",
-    "فاطمة الزهراء": "2023-02-06",
-    "فيصل": "2017-06-27",
-    "كريم رائد": "2024-06-11",
-    "لوقا": "2024-09-16",
-    "محمد أحمد عبد الفتاح": "2008-09-03",
-    "ولاء": "2013-01-20"
-}
+def get_admin_promotion_dates():
+    """
+    جلب قاموس الإداريين مع تواريخ الحصول على الصلاحيات من صفحة مستخدم:Mohammed Qays/admins.json
+    يُتوقع أن تكون الصفحة بصيغة JSON على النحو التالي:
+    [
+        {
+            "username": "Ajwaan",
+            "promotion_date": "2019-09-29"
+        },
+        {
+            "username": "Avicenno",
+            "promotion_date": "2015-08-24"
+        },
+        ...
+    ]
+    """
+    site = pywikibot.Site("ar", "wikipedia")
+    page = pywikibot.Page(site, "مستخدم:Mohammed Qays/admins.json")
+    try:
+        text = page.text.strip()
+        # حذف وسوم <noinclude> إن وجدت
+        if "<noinclude>" in text:
+            text = text.split("<noinclude>")[0].strip()
+        data = json.loads(text)
+        # تحويل القائمة إلى قاموس بحيث يكون المفتاح هو username والقيمة promotion_date
+        promotion_dates = {item["username"]: item["promotion_date"] for item in data}
+        return promotion_dates
+    except Exception as e:
+        print(f"خطأ في جلب أو تحليل JSON: {e}")
+        return {}
+
+# قراءة قاموس الإداريين من القالب
+admin_promotion_dates = get_admin_promotion_dates()
 
 # تحديد الفترة الزمنية
 end_date = datetime.now(timezone.utc)
@@ -119,7 +126,7 @@ def generate_table(admins):
         if username == "مرشح الإساءة":
             continue
             
-        # الحصول على تاريخ الصلاحيات
+        # الحصول على تاريخ الصلاحيات من القاموس المُسترجع
         reg_date = admin_promotion_dates.get(username, "غير معروف")
         formatted_reg_date = format_date(reg_date) if reg_date != "غير معروف" else "غير معروف"
         
@@ -136,18 +143,18 @@ def generate_table(admins):
         
         # حساب المجموع الكلي للأفعال الإدارية خلال 180 يوم
         total_actions = (delete_count + reblock_count + reprotect_count + 
-                        revision_delete_count + log_delete_count + 
-                        restore_count + unblock_count + 
-                        unprotect_count + rights_count)
+                         revision_delete_count + log_delete_count + 
+                         restore_count + unblock_count + 
+                         unprotect_count + rights_count)
         
         # حساب أعمال مرشح الإساءة 225
         abuse_filter_actions = count_admin_edits_with_abuse_filter(username, 180, 225)
         
         # حساب الأفعال خلال 30 يوم فقط
-        actions_30 = count_specific_log_actions(username, 30, "delete") + \
-                    count_specific_log_actions(username, 30, "block") + \
-                    count_specific_log_actions(username, 30, "protect") + \
-                    count_specific_log_actions(username, 30, "rights")
+        actions_30 = (count_specific_log_actions(username, 30, "delete") +
+                      count_specific_log_actions(username, 30, "block") +
+                      count_specific_log_actions(username, 30, "protect") +
+                      count_specific_log_actions(username, 30, "rights"))
         
         # تحديد حالة النشاط خلال 30 يوم
         activity_30_status = "{{Yes2}} نشط" if actions_30 > 0 else "{{No2}} غير نشط"
@@ -180,7 +187,7 @@ def generate_table(admins):
 |}
 * "'''غَيرُ نَشط'''" تعني أن الإداري لم يقم بأي فعل إداري خلال الأيام الثلاثين الماضية.
 * "'''غَيرُ نَشط خلال الأشهر الستة الماضية'''" تعني أن الإداري لم يقم بأكثر من (120) فعلًا إداريًّا خلال الأشهر الستة الماضية.
-* "'''غَيرُ نَشط في حالة النشاط المُنوَّع'''" تعني أن الإداري لم يقم بأكثر من فعلين إداريين في أقسام مختلفة (حماية - حذف - منع - إخفاء - ...).
+* "'''غَيرُ نشط في حالة النشاط المُنوَّع'''" تعني أن الإداري لم يقم بأكثر من فعلين إداريين في أقسام مختلفة (حماية - حذف - منع - إخفاء - ...).
 <noinclude>
 [[تصنيف:ويكيبيديون إداريون]]
 [[تصنيف:تنظيم إدارة ويكيبيديا]]
