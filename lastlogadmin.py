@@ -1,34 +1,7 @@
 import requests
 import pywikibot
+import json
 from datetime import datetime, timedelta, timezone
-
-# قاموس الإداريين مع تواريخ الحصول على الصلاحيات
-admin_promotion_dates = {
-    "Ajwaan": "2019-09-29",
-    "Avicenno": "2015-08-24",
-    "Dr-Taher": "2018-04-05",
-    "Elph": "2012-07-07",
-    "Ibrahim.ID": "2014-03-10",
-    "Meno25": "2007-02-20",
-    "Mervat": "2013-12-01",
-    "Michel Bakni": "2020-07-07",
-    "Mohamed Belgazem": "2022-09-15",
-    "Mohammed Qays": "2024-01-23",
-    "Nehaoua": "2020-12-06",
-    "أبو هشام": "2023-04-02",
-    "أحمد ناجي": "2023-01-04",
-   "أسامة الساعدي": "2013-02-04",
-    "إسلام": "2018-02-10",
-    "باسم": "2010-06-04",
-    "علاء": "2016-08-14",
-    "عمرو بن كلثوم": "2013-02-04",
-    "فاطمة الزهراء": "2023-02-06",
-    "فيصل": "2017-06-27",
-    "كريم رائد": "2024-06-11",
-    "لوقا": "2024-09-16",
-    "محمد أحمد عبد الفتاح": "2008-09-03",
-    "ولاء": "2013-01-20"
-}
 
 # تحديد الفترة الزمنية
 end_date = datetime.now(timezone.utc)
@@ -108,26 +81,47 @@ def get_last_edit(username):
             return timestamp_obj.strftime("%Y-%m-%d")
     return "غير معروف"
 
+def get_admin_promotion_dates():
+    """
+    جلب قاموس الإداريين مع تواريخ الحصول على الصلاحيات من صفحة قالب:admins.json
+    """
+    site = pywikibot.Site("ar", "wikipedia")
+    page = pywikibot.Page(site, "مستخدم:Mohammed Qays/admins.json")
+    try:
+        text = page.text.strip()
+        # حذف <noinclude> إن وجدت
+        if "<noinclude>" in text:
+            text = text.split("<noinclude>")[0].strip()
+        data = json.loads(text)
+        promotion_dates = {item["username"]: item["promotion_date"] for item in data}
+        return promotion_dates
+    except Exception as e:
+        print(f"خطأ في جلب أو تحليل JSON: {e}")
+        return {}
+
 def generate_table(admins):
     """
     إنشاء تقرير الإداريين بصيغة جدول ويكي مع أعمدة لكل نوع من الأفعال الإدارية
     """
-    header = """{| class="wikitable sortable plainrowheaders"
+    admin_promotion_dates = get_admin_promotion_dates()
+
+    header = """{|style=font-size:95%;text-align:center;width:100% class="prettytable sortable"
 |-
 ! rowspan="2" | الإداري
-! rowspan="2" | تاريخ الحصول على الصلاحية
-! colspan="9" | عدد الأفعال الإدارية خلال آخر 180 يوم
+! rowspan="2" | {{اختص| الصلاحية| تاريخ الحصول على الصلاحية}}
+! colspan="9" | {{اختص|عدد الأفعال الإدارية| عدد الأفعال الإدارية التي قام بها الإداري خلال 6 أشهر}}
+! rowspan="2" | {{اختص|المجموع| مجموع الأعمال الإدارية}}
 ! rowspan="2" | آخر تعديل
 |-
-! حذف
-! المنع
-! الحماية
-! المراجعة
-! حذف السجل
-! استعادة
-! رفع المنع
-! رفع الحماية
-! الصلاحيات
+! {{اختص| حذف| عمليات الحذف}}
+! {{اختص|المنع| عمليات المنع}}
+! {{اختص|الحماية| عمليات حماية الصفحات}}
+! {{اختص|المراجعة| عمليات مراجعة الصفحات}}
+! {{اختص|إخفاء| عمليات إخفاء السجلات}}
+! {{اختص|استعادة| عمليات استرجاع الصفحات}}
+! {{اختص|ر.منع| عمليات رفع المنع عن المستخدمين}}
+! {{اختص|ر.الحماية| عمليات رفع الحماية عن الصفحات}}
+! {{اختص|صلاحية| عمليات منح الصلاحيات للمستخدمين}}
 """
     rows = ""
     for admin in admins:
@@ -135,11 +129,9 @@ def generate_table(admins):
         if username == "مرشح الإساءة":
             continue
             
-        # الحصول على تاريخ الصلاحيات
         reg_date = admin_promotion_dates.get(username, "غير معروف")
         formatted_reg_date = format_date(reg_date) if reg_date != "غير معروف" else "غير معروف"
         
-        # حساب عدد الأفعال الإدارية لكل نوع
         delete_count = count_specific_log_actions(username, 180, "delete")
         reblock_count = count_specific_log_actions(username, 180, "block", "reblock")
         reprotect_count = count_specific_log_actions(username, 180, "protect", "modify")
@@ -150,13 +142,17 @@ def generate_table(admins):
         unprotect_count = count_specific_log_actions(username, 180, "protect", "unprotect")
         rights_count = count_specific_log_actions(username, 180, "rights")
         
-        # الحصول على تاريخ آخر تعديل
+        total_actions = (delete_count + reblock_count + reprotect_count + 
+                        revision_delete_count + log_delete_count + 
+                        restore_count + unblock_count + 
+                        unprotect_count + rights_count)
+        
         last_edit = get_last_edit(username)
         formatted_last_edit = format_date(last_edit) if last_edit != "غير معروف" else "غير معروف"
         
         rows += f"""
 |-
-| {{{{إداري|{username}}}}} || {formatted_reg_date} || {delete_count} || {reblock_count} || {reprotect_count} || {revision_delete_count} || {log_delete_count} || {restore_count} || {unblock_count} || {unprotect_count} || {rights_count} || {formatted_last_edit}
+| {{{{إداري|{username}}}}} || {formatted_reg_date} || {delete_count} || {reblock_count} || {reprotect_count} || {revision_delete_count} || {log_delete_count} || {restore_count} || {unblock_count} || {unprotect_count} || {rights_count} || {total_actions} || {formatted_last_edit}
 """
     footer = """
 |}
