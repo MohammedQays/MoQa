@@ -1,63 +1,78 @@
-def process_page(page):
+import pywikibot
+import re
+import toolforge
+
+# Site setup
+site = pywikibot.Site('ar', 'wikipedia')
+
+# SQL query to get the articles
+query = """
+SELECT
+  page_title,
+  page_len,
+  ((page_len / 6.0) / 300 * 40) + (page_len / 4000 * 60) AS score
+FROM
+  page
+WHERE
+  page_namespace = 0
+  AND page_len BETWEEN 1000 AND 4000
+  AND page_touched >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
+  AND page_title NOT LIKE '%(توضيح)%'
+  AND page_id NOT IN (
+    SELECT cl_from
+    FROM categorylinks
+    WHERE cl_to IN (
+      'صفحات_مجموعات_صيغ_كيميائية_مفهرسة',
+      'جميع_المقالات_غير_المراجعة',
+      'جميع_صفحات_توضيح_المقالات',
+      'تحويلات_من_لغات_بديلة'
+    ) OR cl_to LIKE 'بذرة%'
+  )
+ORDER BY
+  score DESC
+LIMIT 1000;
+"""
+
+conn = toolforge.connect('arwiki', 'analytics')
+cursor = conn.cursor()
+
+print("Run the query...")
+
+cursor.execute(query)
+results = cursor.fetchall()
+
+print("Query finished, bot started...")
+
+# Stub template regex
+stub_template = "{{بذرة}}"
+portal_template = "{{شريط بوابات|}}"
+category_regex = re.compile(r'\[\[تصنيف:[^\]]*\]\]', re.IGNORECASE)
+
+for row in results:
+    title = row[0].decode("utf-8") if isinstance(row[0], bytes) else row[0]
+    page = pywikibot.Page(site, title)
+
     try:
-        # تجاهل الصفحة إذا لم تكن في النطاق الرئيسي (للتأكد من معالجة المقالات فقط)
-        if page.namespace() != 0:
-            return
+        if not page.exists() or page.isRedirectPage():
+            continue
 
-        # تجاهل الصفحة إذا كانت تحويلة
-        if page.isRedirectPage():
-            return
+        old_text = page.text
 
-        original_text = page.text
-
-        # تجاهل المقالات التي تحتوي على تحويل في المتن
-        if re.match(r'#تحويل\s*\[\[.*?\]\]', original_text, re.IGNORECASE):
-            return
-
-        disambiguation_checker = Disambiguation(page, page.title(), original_text)
-        
-        # تجاهل صفحات التوضيح بناءً على النص أو العنوان أو التصنيفات
-        if disambiguation_checker.check():
-            return
-
-        # تجاهل القوالب باستخدام تعبير منتظم
-        text_without_templates = re.sub(r'{{.*?}}', '', original_text, flags=re.DOTALL)
-
-        # البحث عن التصنيفات ووضع قالب {{بذرة}} قبلها
-        category_pattern = r'\[\[تصنيف:.*?\]\]'
-        categories = re.findall(category_pattern, original_text)
-
-        # إذا وُجدت التصنيفات، نضع قالب البذرة قبل التصنيفات
-        if categories:
-            text_before_categories = re.split(category_pattern, original_text, maxsplit=1)[0]
-            text_with_categories = "\n".join(categories)
-            new_text = text_before_categories.strip() + '\n\n{{بذرة}}\n\n' + text_with_categories
+        # If the page contains the portal template, place the stub after it
+        if portal_template in old_text:
+            portal_pos = old_text.find(portal_template) + len(portal_template)
+            new_text = old_text[:portal_pos] + "\n" + stub_template + "\n" + old_text[portal_pos:]
+        elif category_regex.search(old_text):
+            new_text = category_regex.sub(stub_template + "\n\\g<0>", old_text, count=1)
         else:
-            # إذا لم توجد تصنيفات، إضافة قالب البذرة في النهاية
-            new_text = original_text.strip() + '\n\n{{بذرة}}'
+            new_text = old_text + "\n" + stub_template
 
-        # التحقق من شروط الحجم والكلمات وغياب قالب بذرة
-        word_count = len(text_without_templates.split())
-        size_in_bytes = len(text_without_templates.encode('utf-8'))
-
-        # حساب المعادلة لتحديد ما إذا كانت الصفحة تحتاج إلى قالب بذرة
-        score = (word_count / 200 * 40) + (size_in_bytes / 2000 * 60)
-        threshold = 100  # تحديد قيمة عتبة (threshold) المناسبة
-
-        if score < threshold and not re.search(r'{{بذرة\b', original_text):
-            # تحديث نص الصفحة
+        if old_text != new_text:
             page.text = new_text
-            page.save(summary='بوت:إضافة قالب بذرة - تجريبي')
-            print(f"تمت إضافة قالب بذرة إلى الصفحة: {page.title()}")
-    except Exception as e:
-        print(f"حدث خطأ أثناء معالجة الصفحة {page.title()}: {e}")
+            page.save(summary="بوت: إضافة قالب بذرة")
 
-# دالة لمعالجة جميع المقالات ضمن تصنيفات فرعية
-def process_category(category_name):
-    category = pywikibot.Category(site, category_name)
-    for subcategory in category.subcategories():  # استعراض التصنيفات الفرعية
-        for page in subcategory.articles():  # استعراض المقالات داخل التصنيف الفرعي
-            process_page(page)
+    except Exception:
+        pass
 
-# استدعاء الدالة لمعالجة المقالات داخل التصنيفات الفرعية
-process_category("تصنيف:مقالات_غير_مقيمة")
+cursor.close()
+conn.close()
