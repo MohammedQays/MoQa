@@ -132,7 +132,7 @@ def generate_table(admins):
         reg_date = admin_promotion_dates.get(username, "غير معروف")
         formatted_reg_date = format_date(reg_date) if reg_date != "غير معروف" else "غير معروف"
         
-        delete_count = count_specific_log_actions(username, 180, "delete")
+        delete_count = count_specific_log_actions(username, 180, "delete", "delete")
         reblock_count = count_specific_log_actions(username, 180, "block", "reblock")
         reprotect_count = count_specific_log_actions(username, 180, "protect", "modify")
         revision_delete_count = count_specific_log_actions(username, 180, "delete", "revision")
