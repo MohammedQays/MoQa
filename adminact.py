@@ -131,7 +131,7 @@ def generate_table(admins):
         formatted_reg_date = format_date(reg_date) if reg_date != "غير معروف" else "غير معروف"
         
         # حساب عدد الأفعال الإدارية لكل نوع
-        delete_count = count_specific_log_actions(username, 180, "delete")
+        delete_count = count_specific_log_actions(username, 180, "delete", "delete")
         reblock_count = count_specific_log_actions(username, 180, "block", "reblock")
         reprotect_count = count_specific_log_actions(username, 180, "protect", "modify")
         revision_delete_count = count_specific_log_actions(username, 180, "delete", "revision")
