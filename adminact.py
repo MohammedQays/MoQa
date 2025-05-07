@@ -162,7 +162,7 @@ def generate_table(admins):
         # تحديد حالة النشاط خلال 180 يوم (120 فعل)
         activity_180_status = "{{Yes2}} نشط" if total_actions >= 120 else "{{No2}} غير نشط"
         
-        # تحديد حالة النشاط المتنوع (3 أنواع مختلفة على الأقل)
+        # تحديد حالة النشاط المتنوع (2 أنواع مختلفة على الأقل)
         diverse_categories = 0
         if delete_count + revision_delete_count + log_delete_count + restore_count > 0:
             diverse_categories += 1  # حذف/استعادة
