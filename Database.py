@@ -25,7 +25,6 @@ month_ar = arabic_months[now.strftime("%B")]
 year = now.strftime("%Y")
 formatted_time = f"{time_part}، {day} {month_ar} {year} (ت ع م)"
 
-# دوال مساعدة
 def parse_template(wikitext):
     parsed = parse(wikitext)
     for t in parsed.templates:
@@ -38,25 +37,65 @@ def parse_links_option(option_str):
     if not option_str:
         return link_map
     for part in option_str.split(','):
+        part = part.strip()
         if ':' in part:
             col, ns = part.split(':')
+            col_index = int(col.strip()) - 1
+            ns_index = int(ns.strip())
         else:
-            col, ns = part.strip(), '0'
-        link_map[int(col.strip()) - 1] = int(ns.strip())
+            col_index = int(part.strip()) - 1
+            ns_index = 0  # نطاق المقالات
+        link_map[col_index] = ns_index
     return link_map
 
 def wikify(value, ns):
-    if ns == 2:
-        return f"[[مستخدم:{value}|{value}]]"
-    elif ns == 0:
+    if ns == 0:
         return f"[[{value}]]"
+    elif ns == 1:
+        return f"[[نقاش:{value}|{value}]]"
+    elif ns == 2:
+        return f"[[مستخدم:{value}|{value}]]"
+    elif ns == 3:
+        return f"[[نقاش المستخدم:{value}|{value}]]"
+    elif ns == 4:
+        return f"[[ويكيبيديا:{value}|{value}]]"
+    elif ns == 5:
+        return f"[[نقاش ويكيبيديا:{value}|{value}]]"
+    elif ns == 6:
+        return f"[[ملف:{value}|{value}]]"
+    elif ns == 7:
+        return f"[[نقاش الملف:{value}|{value}]]"
+    elif ns == 8:
+        return f"[[ميدياويكي:{value}|{value}]]"
+    elif ns == 9:
+        return f"[[نقاش ميدياويكي:{value}|{value}]]"
+    elif ns == 10:
+        return f"[[قالب:{value}|{value}]]"
+    elif ns == 11:
+        return f"[[نقاش القالب:{value}|{value}]]"
+    elif ns == 12:
+        return f"[[مساعدة:{value}|{value}]]"
+    elif ns == 13:
+        return f"[[نقاش المساعدة:{value}|{value}]]"
+    elif ns == 14:
+        return f"[[تصنيف:{value}|{value}]]"
+    elif ns == 15:
+        return f"[[نقاش التصنيف:{value}|{value}]]"
+    elif ns == 100:
+        return f"[[بوابة:{value}|{value}]]"
+    elif ns == 101:
+        return f"[[نقاش البوابة:{value}|{value}]]"
+    elif ns == 828:
+        return f"[[وحدة:{value}|{value}]]"
+    elif ns == 829:
+        return f"[[نقاش الوحدة:{value}|{value}]]"
     else:
         return value
 
 def build_table(results, links, numbering, headers):
     if not results:
         return "| لا توجد نتائج"
-    table = ['{| class="wikitable"', "|-"]
+    table = ['{| class="wikitable sortable" style="text-align:right; direction:rtl;"', "|-"]
     if numbering:
         table.append("! #")
     table.extend([f"! {h}" for h in headers])
@@ -77,13 +116,12 @@ def build_table(results, links, numbering, headers):
     table.append("|}")
     return "\n".join(table)
 
-# الاتصال بالموسوعة وقاعدة البيانات
+# تنفيذ
 site = pywikibot.Site()
 cat = pywikibot.Category(site, settings.category)
 pages = list(pagegenerators.CategorizedPageGenerator(cat))
 conn = toolforge.connect(settings.lang, 'analytics')
 
-# تنفيذ التقارير
 for page in pages:
     text = page.text
     try:
@@ -91,7 +129,8 @@ for page in pages:
     except Exception:
         continue
 
-    if params.get("تحديث", "").strip() != "نعم":
+    update_flag = params.get("تحديث", "").strip().lower()
+    if update_flag not in ["نعم", "yes", "1", "true"]:
         continue
 
     interval_param = params.get("الفاصل", "").strip()
@@ -101,7 +140,6 @@ for page in pages:
             last_rev = page.latest_revision
             last_user = last_rev.user
             last_ts = last_rev.timestamp
-            now = datetime.now(timezone.utc)
             if last_user and 'bot' in last_user.lower():
                 time_diff = now - last_ts
                 if time_diff.days < interval_days:
@@ -114,13 +152,13 @@ for page in pages:
         continue
 
     limit_param = params.get("حد_الصفحات", "").strip()
-    limit = int(limit_param) if limit_param.isdigit() else 50
+    limit = int(limit_param) if limit_param.isdigit() else 100
     links = parse_links_option(params.get("وصلات", ""))
     numbering = params.get("ترقيم", "").strip().lower() in ["نعم", "1", "true"]
 
     with conn.cursor() as cursor:
-        q_with_limit = re.sub(r'limit\s+\d+', '', query, flags=re.IGNORECASE)
-        q_with_limit += f"\nLIMIT {limit}"
+        q_clean = re.sub(r'limit\s+\d+\s*;?', '', query, flags=re.IGNORECASE).strip().rstrip(';')
+        q_with_limit = f"{q_clean} LIMIT {limit}"
         try:
             cursor.execute(q_with_limit)
             results = cursor.fetchall()
@@ -128,28 +166,15 @@ for page in pages:
         except Exception:
             continue
 
-    table_text = build_table(results, links, numbering, headers)
+    result_text = f"\n'''حَدَّث [[مستخدم:MoQabot|MoQabot]] هذه القائمة في : {formatted_time}'''\n"
+    result_text += build_table(results, links, numbering, headers)
+    result_text += "\n{{نهاية تقرير قاعدة البيانات}}"
 
-    # استخراج القالب الكامل لتعديله
-    template_match = re.search(r'(\{\{تقرير قاعدة البيانات.*?\}\})', text, flags=re.DOTALL)
-    if not template_match:
-        continue
+    text = re.sub(r'(\{\{تقرير قاعدة البيانات[^\}]*?)\|تحديث\s*=\s*نعم', r'\1|تحديث = لا', text, flags=re.DOTALL)
 
-    template_text = template_match.group(1)
-    updated_template_text = re.sub(r'\|تحديث\s*=\s*نعم', '|تحديث = لا', template_text)
-
-    # بناء محتوى التقرير الجديد
-    report_content = (
-        f"{updated_template_text}\n"
-        f"\n'''حَدَّث [[مستخدم:MoQabot|MoQabot]] هذه القائمة في : {formatted_time}'''\n"
-        f"{table_text}\n"
-        f"{{{{نهاية تقرير قاعدة البيانات}}}}"
-    )
-
-    # استبدال المحتوى السابق بالكامل من البداية للنهاية
     new_text = re.sub(
-        r'\{\{تقرير قاعدة البيانات.*?\}\}.*?\{\{نهاية تقرير قاعدة البيانات\}\}',
-        report_content,
+        r'(\{\{تقرير قاعدة البيانات.*?\}\})(.*?)\{\{نهاية تقرير قاعدة البيانات\}\}',
+        r'\1' + result_text,
         text,
         flags=re.DOTALL
     )
