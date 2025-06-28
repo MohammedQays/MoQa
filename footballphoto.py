@@ -21,7 +21,7 @@ FOOTBALL_TEMPLATES = [
     'صندوق معلومات لاعب كرة قدم أمريكية'
 ]
 
-IMAGE_FIELDS = ['صورة', 'الصورة', 'image']
+IMAGE_FIELDS = ['صورة', 'الصورة', 'image', 'image_name']
 
 
 def find_infobox_start(text):
@@ -80,7 +80,7 @@ def remove_nonempty_caption(text):
     def clean_caption(match):
         value = match.group(2).strip()
         return '' if not value else ''  
-    return re.sub(r'^\|\s*(تعليق(?:\s*الصورة)?)\s*=\s*.+$', clean_caption, text, flags=re.MULTILINE)
+    return re.sub(r'^\|\s*(تعليق(?:\s*الصورة)?|caption|شرح)\s*=\s*.+$', clean_caption, text, flags=re.MULTILINE)
 
 
 def process_article(title):
