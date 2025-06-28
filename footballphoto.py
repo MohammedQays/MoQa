@@ -56,23 +56,31 @@ def update_or_add_image(text, image_name):
 
     lines = text.splitlines()
     updated = False
+    found_image = False
+
     for idx, line in enumerate(lines):
         for field in IMAGE_FIELDS:
             match = re.match(rf'\|\s*{field}\s*=\s*(.+)', line)
             if match:
+                found_image = True
                 current = match.group(1).strip()
                 current_clean = re.sub(r'\[\[|\]\]', '', current).split('|')[0].strip()
                 if current_clean != image_name:
                     lines[idx] = f'| {field} = {image_name}'
                     updated = True
-                return '\n'.join(lines) if updated else text
-
-    # إذا لم توجد صورة أصلاً
-    for idx, line in enumerate(lines):
-        if template_match in line:
-            lines.insert(idx + 1, f'| صورة = {image_name}')
+                break
+        if found_image:
             break
-    return '\n'.join(lines)
+
+    # لا تقم بإضافة صورة إذا لم تكن موجودة من قبل
+    return '\n'.join(lines) if updated else text
+
+
+def remove_nonempty_caption(text):
+    def clean_caption(match):
+        value = match.group(2).strip()
+        return '' if not value else ''  
+    return re.sub(r'^\|\s*(تعليق(?:\s*الصورة)?)\s*=\s*.+$', clean_caption, text, flags=re.MULTILINE)
 
 
 def process_article(title):
@@ -104,9 +112,11 @@ def process_article(title):
         return
 
     new_text = update_or_add_image(text_ar, image_name)
+    new_text = remove_nonempty_caption(new_text)
+
     if new_text != text_ar:
         page_ar.text = new_text
-        page_ar.save(summary='بوت: تحديث/إضافة صورة - تجريبي')
+        page_ar.save(summary='بوت: تحديث صورة - تجريبي')
 
 
 def load_titles_from_categories():
