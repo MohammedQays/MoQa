@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 class settings:
     lang = 'arwiki'
-    report_title = "ويكيبيديا:تقارير قاعدة البيانات/صفحات في نطاق المستخدم ليس لها حساب مسجل"
+    report_base = "ويكيبيديا:تقارير قاعدة البيانات/صفحات في نطاق المستخدم ليس لها حساب مسجل"
     editsumm = "[[وب:بوت|بوت]]: تحديث."
     debug = "no"
 
@@ -20,7 +20,7 @@ month_ar = arabic_months[now.strftime("%B")]
 year = now.strftime("%Y")
 formatted_time = f"{time_part}، {day} {month_ar} {year} (ت ع م)"
 
-query = """
+query_template = """
 SELECT
   page.page_namespace,
   page.page_title,
@@ -33,7 +33,7 @@ LEFT JOIN user ON user.user_name = REPLACE(SUBSTRING_INDEX(page.page_title, '/',
 LEFT JOIN revision AS rev ON rev.rev_page = page.page_id
 LEFT JOIN actor ON actor.actor_id = rev.rev_actor
 WHERE
-  page.page_namespace IN (2, 3)
+  page.page_namespace = {namespace}
   AND page.page_is_redirect = 0
   AND user.user_name IS NULL
   AND rev.rev_timestamp = (
@@ -46,60 +46,64 @@ ORDER BY
 LIMIT 1000;
 """
 
-site = pywikibot.Site()
-conn = toolforge.connect(settings.lang, 'analytics')
+def make_report(namespace: int, page_title: str):
+    ns_label = "مستخدم" if namespace == 2 else "نقاش المستخدم"
+    query = query_template.format(namespace=namespace)
+    conn = toolforge.connect(settings.lang, 'analytics')
 
-with conn.cursor() as cursor:
-    cursor.execute(query)
-    results = cursor.fetchall()
+    with conn.cursor() as cursor:
+        cursor.execute(query)
+        results = cursor.fetchall()
 
-content = f"""<center>
+    content = f"""<center>
 <div class="skin-invert" style="background: #E5E4E2; padding: 0.5em; font-family: Traditional Arabic; font-size: 130%; border-radius: 0.3em;">
-'''صفحات المستخدمين التي لا يملكها أي مستخدم مسجل'''
-<onlyinclude>
-'''حُدِّث التقرير بواسطة [[مستخدم:MoQabot|MoQabot]] في: {formatted_time}'''
-</onlyinclude>
+'''صفحات في نطاق {ns_label} ليس لها [[خاص:ListUsers|حساب مسجل]]'''
+
+'''حُدِّث التقرير بواسطة [[مستخدم:MoQabot|MoQabot]] في:<onlyinclude> {formatted_time} </onlyinclude>'''
 </div>
 </center>
 
 <center>
 <div class="skin-invert" style="background: #E5E4E2; padding: 0.5em; border-radius: 0.3em;">
-{{{{أرقام صفوف ثابتة}}}}
 
-{{| class="wikitable sortable static-row-numbers static-row-header-text"
-|- style="white-space: nowrap;"
-! الصفحة
+{{| class="wikitable"
+! ت
+! صفحة المستخدم
 ! حجم الصفحة (بايت)
 ! اسم المنشئ
 ! تاريخ الإنشاء
 """
 
-for row in results:
-    ns, title, page_len, ts_raw, actor_raw = row
+    counter = 1
+    for row in results:
+        ns, title, page_len, ts_raw, actor_raw = row
+        title = title.decode("utf-8") if isinstance(title, bytes) else title
+        actor = actor_raw.decode("utf-8") if (actor_raw and isinstance(actor_raw, bytes)) else (actor_raw or "غير معروف")
 
-    title = title.decode("utf-8") if isinstance(title, bytes) else title
-    actor = actor_raw.decode("utf-8") if (actor_raw and isinstance(actor_raw, bytes)) else (actor_raw or "غير معروف")
-
-    if ts_raw:
-        ts_raw = ts_raw.decode("utf-8") if isinstance(ts_raw, bytes) else ts_raw
-        try:
-            rev_timestamp_dt = datetime.strptime(ts_raw, "%Y%m%d%H%M%S")
-            rev_timestamp = rev_timestamp_dt.strftime("%Y-%m-%d %H:%M")
-        except Exception:
+        if ts_raw:
+            ts_raw = ts_raw.decode("utf-8") if isinstance(ts_raw, bytes) else ts_raw
+            try:
+                rev_timestamp_dt = datetime.strptime(ts_raw, "%Y%m%d%H%M%S")
+                rev_timestamp = rev_timestamp_dt.strftime("%Y-%m-%d %H:%M")
+            except Exception:
+                rev_timestamp = "غير معروف"
+        else:
             rev_timestamp = "غير معروف"
+
+        page_link = f"[[{ns_label}:{title.replace('_', ' ')}]]"
+        content += f"|-\n| {counter} || {page_link} || {page_len} || {actor} || {rev_timestamp}\n"
+        counter += 1
+
+    content += "|}\n</div>\n</center>\n"
+
+    site = pywikibot.Site()
+    page = pywikibot.Page(site, page_title)
+    if settings.debug == "no":
+        page.text = content
+        page.save(settings.editsumm)
     else:
-        rev_timestamp = "غير معروف"
+        print(f"== Preview for {page_title} ==\n{content}")
 
-    ns_prefix = "مستخدم" if ns == 2 else "نقاش المستخدم"
-    page_link = f"[[{ns_prefix}:{title.replace('_', ' ')}]]"
-
-    content += f"|-\n| {page_link} || {page_len} || {actor} || {rev_timestamp}\n"
-
-content += "|}\n</div>\n</center>\n"
-
-page = pywikibot.Page(site, settings.report_title)
-if settings.debug == "no":
-    page.text = content
-    page.save(settings.editsumm)
-else:
-    print("== Preview ==\n" + content)
+# توليد التقارير لكلا النطاقين
+make_report(namespace=2, page_title=f"{settings.report_base}/1")  # مستخدم
+make_report(namespace=3, page_title=f"{settings.report_base}/2")  # نقاش المستخدم
