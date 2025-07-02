@@ -42,7 +42,7 @@ with conn.cursor() as cursor:
     cursor.execute(query)
     results = cursor.fetchall()
 
-# تقسيم النتائج إلى صفحات كل واحدة بها 200 نتيجة
+# تقسيم النتائج إلى صفحات فرعية بحجم 200
 titles = [row[0].decode("utf-8") if isinstance(row[0], bytes) else row[0] for row in results]
 chunk_size = 200
 chunks = [titles[i:i + chunk_size] for i in range(0, len(titles), chunk_size)]
@@ -54,22 +54,28 @@ for i, chunk in enumerate(chunks, start=1):
 <div class="skin-invert" style="background: #E5E4E2; padding: 0.5em; font-family: Traditional Arabic; font-size: 130%; -moz-border-radius: 0.3em; border-radius: 0.3em;">
 '''تصنيفات مرتبطة بالمستخدمين'''
 <onlyinclude>
-'''تم التحديث بواسطة [[مستخدم:MoQabot|MoQabot]] في: {formatted_time}'''
+'''حُدِّثت هذه القائمة بواسطة [[مستخدم:MoQabot|MoQabot]] في : {formatted_time}'''
 </onlyinclude>
 </div>
 </center>
 
+<center>
+<div class="skin-invert" style="background: #E5E4E2; padding: 0.5em; -moz-border-radius: 0.3em; border-radius: 0.3em;">
 __NOTOC__
+
 {{{{أرقام صفوف ثابتة}}}}
 
 {{| class="wikitable sortable static-row-numbers static-row-header-text"
+|- style="white-space: nowrap;"
 ! التصنيف
 """
+
     for title in chunk:
         content += f"|-\n| [[:تصنيف:{title.replace('_', ' ')}]]\n"
-    content += "|}"
 
-    # نشر الصفحة الفرعية فقط
+    content += "|}\n</div>\n</center>\n"
+
+    # نشر الصفحة الفرعية
     page = pywikibot.Page(site, subpage_title)
     if settings.debug == "no":
         page.text = content
