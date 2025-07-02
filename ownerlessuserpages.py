@@ -42,7 +42,7 @@ WHERE
     WHERE rev2.rev_page = page.page_id
   )
 ORDER BY
-  page.page_len DESC
+  rev.rev_timestamp ASC
 LIMIT 1000;
 """
 
@@ -91,7 +91,7 @@ def make_report(namespace: int, page_title: str):
             rev_timestamp = "غير معروف"
 
         page_link = f"[[{ns_label}:{title.replace('_', ' ')}]]"
-        content += f"|-\n| {counter} || {page_link} || {page_len} || {actor} || {rev_timestamp}\n"
+        content += f"|-\n| {counter} || {page_link} || {page_len} || {{{مس|{actor}}}} || {rev_timestamp}\n"
         counter += 1
 
     content += "|}\n</div>\n</center>\n"
