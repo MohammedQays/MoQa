@@ -1,6 +1,5 @@
 import pywikibot
 import toolforge
-from datetime import datetime, timezone
 
 # إعدادات البوت
 class settings:
@@ -8,19 +7,6 @@ class settings:
     base_report_title = "ويكيبيديا:تقارير قاعدة البيانات/تصنيفات مستخدمون"
     editsumm = "[[وب:بوت|بوت]]: تحديث."
     debug = "no"  # اجعلها "yes" للتجربة دون نشر
-
-# إعداد التاريخ بالتنسيق العربي
-arabic_months = {
-    "January": "يناير", "February": "فبراير", "March": "مارس", "April": "أبريل",
-    "May": "مايو", "June": "يونيو", "July": "يوليو", "August": "أغسطس",
-    "September": "سبتمبر", "October": "أكتوبر", "November": "نوفمبر", "December": "ديسمبر",
-}
-now = datetime.now(timezone.utc)
-time_part = now.strftime("%H:%M")
-day = str(int(now.strftime("%d")))
-month_ar = arabic_months[now.strftime("%B")]
-year = now.strftime("%Y")
-formatted_time = f"{time_part}، {day} {month_ar} {year} (ت ع م)"
 
 # الاستعلام المطلوب
 query = """
@@ -50,30 +36,18 @@ chunks = [titles[i:i + chunk_size] for i in range(0, len(titles), chunk_size)]
 # إنشاء الصفحات الفرعية فقط
 for i, chunk in enumerate(chunks, start=1):
     subpage_title = f"{settings.base_report_title}/{i}"
-    content = f"""<center>
-<div class="skin-invert" style="background: #E5E4E2; padding: 0.5em; font-family: Traditional Arabic; font-size: 130%; -moz-border-radius: 0.3em; border-radius: 0.3em;">
-'''تصنيفات مرتبطة بالمستخدمين'''
-<onlyinclude>
-'''حُدِّثت هذه القائمة بواسطة [[مستخدم:MoQabot|MoQabot]] في : {formatted_time}'''
-</onlyinclude>
-</div>
-</center>
+    content = """__NOTOC__
 
-<center>
-<div class="skin-invert" style="background: #E5E4E2; padding: 0.5em; -moz-border-radius: 0.3em; border-radius: 0.3em;">
-__NOTOC__
-
-{{{{أرقام صفوف ثابتة}}}}
+{{أرقام صفوف ثابتة}}
 
 {{| class="wikitable sortable static-row-numbers static-row-header-text"
 |- style="white-space: nowrap;"
 ! التصنيف
 """
-
     for title in chunk:
         content += f"|-\n| [[:تصنيف:{title.replace('_', ' ')}]]\n"
 
-    content += "|}\n</div>\n</center>\n"
+    content += "|}"
 
     # نشر الصفحة الفرعية
     page = pywikibot.Page(site, subpage_title)
