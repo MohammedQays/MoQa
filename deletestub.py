@@ -1,127 +1,61 @@
 import pywikibot
-from pywikibot import pagegenerators
 import re
-import time
-import pickle
-import requests
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import wikitextparser as wtp
 
-# إعدادات أساسية
-SITE = pywikibot.Site('ar', 'wikipedia')
-SITE.login()
-CATEGORY_NAME = "تصنيف:بذرة بحاجة لتعديل"
-EXCLUDED_CATEGORIES = {
+# تعريف الموقع (اللغة المختارة هي العربية ar)
+site = pywikibot.Site('ar', 'wikipedia')
+site.login()
+
+# التصنيفات المستبعدة (إن وُجدت ضمن المقالات في التصنيف)
+excluded_categories = [
     'صفحات مجموعات صيغ كيميائية مفهرسة',
     'كواكب صغيرة مسماة',
     'تحويلات من لغات بديلة',
     'تحويلات علم الفلك'
-}
-CACHE_FILE = 'processed_articles.pkl'
-MAX_WORKERS = 1  # عدد العمليات المتوازية
+]
 
-class ArticleProcessor:
-    def __init__(self):
-        self.processed = self.load_cache()
-        self.session = requests.Session()
+# ملف لحفظ المقالات المستبعدة (للتوثيق)
+ignored_pages_file = "ignored_pages.txt"
 
-    @staticmethod
-    def load_cache():
-        try:
-            with open(CACHE_FILE, 'rb') as f:
-                return pickle.load(f)
-        except FileNotFoundError:
-            return set()
+def log_ignored_page(page_title):
+    with open(ignored_pages_file, "a", encoding="utf-8") as file:
+        file.write(f"{page_title}\n")
+    print(f"تم إضافة {page_title} إلى ملف المقالات المستبعدة.")
 
-    def save_cache(self):
-        with open(CACHE_FILE, 'wb') as f:
-            pickle.dump(self.processed, f)
-
-    def fetch_articles(self):
-        """جلب المقالات باستخدام API"""
-        params = {
-            'action': 'query',
-            'list': 'categorymembers',
-            'cmtitle': CATEGORY_NAME,
-            'cmnamespace': 0,
-            'cmlimit': 'max',
-            'format': 'json'
-        }
-
-        while True:
-            response = self.session.get(
-                'https://ar.wikipedia.org/w/api.php',
-                params=params
-            ).json()
-
-            for page in response.get('query', {}).get('categorymembers', []):
-                yield pywikibot.Page(SITE, page['title'])
-
-            if 'continue' not in response:
-                break
-            params.update(response['continue'])
-
-    def is_excluded(self, page):
-        """التحقق من التصنيفات المستبعدة"""
+def process_page(page):
+    try:
+        # التحقق من التصنيفات المستبعدة إن وُجدت
         page_categories = {cat.title(with_ns=False) for cat in page.categories()}
-        return any(ec in page_categories for ec in EXCLUDED_CATEGORIES)
+        if any(excluded_category in page_categories for excluded_category in excluded_categories):
+            log_ignored_page(page.title())
+            print(f"تم تخطي الصفحة {page.title()} لأنها تنتمي إلى تصنيف مستبعد.")
+            return
 
-    def process_article(self, page):
-        """المعالجة الرئيسية للمقالة"""
-        try:
-            if page.title() in self.processed:
-                return
+        # بما أن التصنيف \"بذرة بحاجة لتعديل\" لا يحتوي على تحويلات أو صفحات توضيح، فلا حاجة لفحصها
 
-            if self.is_excluded(page):
-                print(f"تخطي: {page.title()} (تصنيف مستبعد)")
-                self.processed.add(page.title())
-                return
+        original_text = page.text
 
-            text = page.get()
-            if not re.search(r'\{\{\s*بذرة[^}]*\}\}', text):
-                print(f"تخطي: {page.title()} (لا يوجد قالب بذرة)")
-                self.processed.add(page.title())
-                return
+        # إزالة القوالب لحساب عدد الكلمات وحجم النص بدقة
+        text_without_templates = re.sub(r'{{.*?}}', '', original_text, flags=re.DOTALL)
+        word_count = len(text_without_templates.split())
+        size_in_bytes = len(text_without_templates.encode('utf-8'))
 
-            text_without_stub = re.sub(r'\{\{\s*بذرة[^}]*\}\}', '', text)
-            words = len(text_without_stub.split())
-            size = len(text_without_stub.encode('utf-8'))
+        # حساب المعادلة لتحديد مستوى المقالة
+        score = (word_count / 400 * 40) + (size_in_bytes / 5000 * 60)
+        threshold = 100  # قيمة العتبة المناسبة
 
-            if (words / 400 * 40) + (size / 5000 * 60) >= 100:
-                new_text = text_without_stub.strip()
-                if new_text != text:
-                    page.text = new_text
-                    page.save(summary="بوت:إزالة قالب بذرة")
+        # إذا كانت المقالة تحقق المعايير الأعلى وتحتوي على قالب {{بذرة}}، نقوم بإزالته
+        if score >= threshold and re.search(r'{{بذرة\b', original_text):
+            new_text = re.sub(r'{{بذرة}}\s*', '', original_text, flags=re.IGNORECASE).strip()
+            page.text = new_text
+            page.save(summary='بوت: إزالة قالب بذرة')
+            print(f"تمت إزالة قالب بذرة من الصفحة: {page.title()}")
+        else:
+            print(f"الصفحة {page.title()} لا تحتاج إلى تعديل.")
+    except Exception as e:
+        print(f"حدث خطأ أثناء معالجة الصفحة {page.title()}: {e}")
 
-            self.processed.add(page.title())
-
-        except Exception:
-            pass
-        finally:
-            time.sleep(1)
-
-    def run(self):
-        """تشغيل المعالجة مع التوازي"""
-        try:
-            with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-                futures = {
-                    executor.submit(self.process_article, page): page 
-                    for page in self.fetch_articles()
-                }
-
-                for future in as_completed(futures):
-                    page = futures[future]
-                    try:
-                        future.result()
-                    except Exception:
-                        pass
-
-                    if len(self.processed) % 50 == 0:
-                        time.sleep(10)
-                        self.save_cache()
-
-        finally:
-            self.save_cache()
-
-if __name__ == "__main__":
-    processor = ArticleProcessor()
-    processor.run()
+# معالجة جميع المقالات في تصنيف "بذرة بحاجة لتعديل"
+category = pywikibot.Category(site, 'تصنيف:بذرة بحاجة لتعديل')
+for page in category.articles():
+    process_page(page)
