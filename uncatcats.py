@@ -104,7 +104,7 @@ for row in results:
     rev_timestamp_dt = datetime.strptime(ts_str, "%Y%m%d%H%M%S")
     rev_timestamp = rev_timestamp_dt.strftime("%Y-%m-%d %H:%M")
     
-    actor = row[4]
+    actor = row[4].decode("utf-8") if isinstance(row[4], bytes) else row[4]
 
     content += f"|-\n| [[:تصنيف:{title.replace('_', ' ')}]] || {page_len} || {cat_pages} || {rev_timestamp} || {actor}\n"
 
