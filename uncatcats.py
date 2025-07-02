@@ -89,8 +89,8 @@ __NOTOC__
 {{| class="wikitable sortable static-row-numbers static-row-header-text"
 |- style="white-space: nowrap;"
 ! التصنيف
-! حجم الصفحة (بايت)
-! عدد الصفحات في التصنيف
+! حجم (بايت)
+! عدد الصفحات
 ! آخر تعديل
 ! اسم المحرر
 """
