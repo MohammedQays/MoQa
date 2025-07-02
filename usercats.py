@@ -40,7 +40,7 @@ for i, chunk in enumerate(chunks, start=1):
 
 {{أرقام صفوف ثابتة}}
 
-{{| class="wikitable sortable static-row-numbers static-row-header-text"
+{| class="wikitable sortable static-row-numbers static-row-header-text"
 |- style="white-space: nowrap;"
 ! التصنيف
 """
