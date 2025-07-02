@@ -99,7 +99,11 @@ for row in results:
     title = row[0].decode("utf-8") if isinstance(row[0], bytes) else row[0]
     page_len = row[1]
     cat_pages = row[2]
-    rev_timestamp = row[3].strftime("%Y-%m-%d %H:%M")
+    
+    ts_str = row[3].decode("utf-8") if isinstance(row[3], bytes) else row[3]
+    rev_timestamp_dt = datetime.strptime(ts_str, "%Y%m%d%H%M%S")
+    rev_timestamp = rev_timestamp_dt.strftime("%Y-%m-%d %H:%M")
+    
     actor = row[4]
 
     content += f"|-\n| [[:تصنيف:{title.replace('_', ' ')}]] || {page_len} || {cat_pages} || {rev_timestamp} || {actor}\n"
