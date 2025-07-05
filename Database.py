@@ -44,7 +44,7 @@ def parse_links_option(option_str):
             ns_index = int(ns.strip())
         else:
             col_index = int(part.strip()) - 1
-            ns_index = 0  # نطاق المقالات
+            ns_index = 0
         link_map[col_index] = ns_index
     return link_map
 
@@ -103,7 +103,7 @@ def build_table(results, links, numbering, headers):
         table.append("|-")
         if numbering:
             table.append(f"| {idx}")
-        for i, h in enumerate(headers):
+        for i, _ in enumerate(headers):
             val = row[i]
             if isinstance(val, bytes):
                 val = val.decode("utf-8")
@@ -120,7 +120,6 @@ def build_table(results, links, numbering, headers):
 site = pywikibot.Site()
 cat = pywikibot.Category(site, settings.category)
 pages = list(pagegenerators.CategorizedPageGenerator(cat))
-conn = toolforge.connect(settings.lang, 'analytics')
 
 for page in pages:
     text = page.text
@@ -156,22 +155,36 @@ for page in pages:
     links = parse_links_option(params.get("وصلات", ""))
     numbering = params.get("ترقيم", "").strip().lower() in ["نعم", "1", "true"]
 
+    # تحديد قاعدة البيانات
+    db_name = params.get("قاعدة_بيانات", "").strip() or "arwiki_p"
+
+    try:
+        conn = toolforge.connect(db_name, 'analytics')
+    except Exception as e:
+        print(f"فشل الاتصال بقاعدة البيانات {db_name}: {e}")
+        continue
+
     with conn.cursor() as cursor:
         q_clean = re.sub(r'limit\s+\d+\s*;?', '', query, flags=re.IGNORECASE).strip().rstrip(';')
         q_with_limit = f"{q_clean} LIMIT {limit}"
+
         try:
             cursor.execute(q_with_limit)
             results = cursor.fetchall()
             headers = [desc[0] for desc in cursor.description]
-        except Exception:
+        except Exception as e:
+            print(f"خطأ في تنفيذ الاستعلام: {e}")
             continue
 
+    # بناء الجدول
     result_text = f"\n'''حَدَّث [[مستخدم:MoQabot|MoQabot]] هذه القائمة في : {formatted_time}'''\n"
     result_text += build_table(results, links, numbering, headers)
     result_text += "\n{{نهاية تقرير قاعدة البيانات}}"
 
+    # تعطيل التحديث بعد التنفيذ
     text = re.sub(r'(\{\{تقرير قاعدة البيانات[^\}]*?)\|تحديث\s*=\s*نعم', r'\1|تحديث = لا', text, flags=re.DOTALL)
 
+    # استبدال النتائج القديمة بالجديدة
     new_text = re.sub(
         r'(\{\{تقرير قاعدة البيانات.*?\}\})(.*?)\{\{نهاية تقرير قاعدة البيانات\}\}',
         r'\1' + result_text,
@@ -183,5 +196,6 @@ for page in pages:
         page.text = new_text
         try:
             page.save(settings.editsumm)
-        except Exception:
+        except Exception as e:
+            print(f"فشل حفظ الصفحة {page.title()}: {e}")
             continue
