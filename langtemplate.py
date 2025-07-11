@@ -19,7 +19,7 @@ WHERE
   cl.cl_to = 'أخطاء_قالب_لغة_واللغة'
   AND p.page_namespace = 0
   AND p.page_is_redirect = 0
-  LIMIT 10;
+  LIMIT 200;
 """
 
 conn = toolforge.connect(settings.lang, 'analytics')
