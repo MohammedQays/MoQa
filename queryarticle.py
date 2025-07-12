@@ -67,4 +67,4 @@ content += "|}"
 # حفظ الصفحة
 page = pywikibot.Page(site, "مستخدم:Mohammed Qays/أفلام")
 page.text = content
-page.save(summary="بوت: تحديث مقالات أفلام 2024 دون مقابل عربي")
+page.save(summary="بوت:جلب قائمة")
