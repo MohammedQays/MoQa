@@ -13,7 +13,7 @@ SELECT
     pp.pp_value AS wikidata_id
 FROM page AS en_page
 INNER JOIN categorylinks AS cl ON en_page.page_id = cl.cl_from
-LEFT JOIN page_props AS pp ON pp.pp_page = en_page.page_id AND pp.pp_propname = 'wikibase_item'
+INNER JOIN page_props AS pp ON pp.pp_page = en_page.page_id AND pp.pp_propname = 'wikibase_item'
 WHERE
     en_page.page_namespace = 0
     AND en_page.page_is_redirect = 0
@@ -25,7 +25,7 @@ WHERE
         WHERE ar_lang.ll_lang = 'ar'
           AND ar_lang.ll_from = en_page.page_id
     )
-GROUP BY en_page.page_id
+GROUP BY en_page.page_id, pp.pp_value
 ORDER BY en_page.page_touched DESC, en_page.page_title
 LIMIT 100;
 """
