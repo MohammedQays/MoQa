@@ -28,9 +28,10 @@ LIMIT 100;
 """
 
 # تنفيذ الاستعلام
-with conn.cursor(dictionary=True) as cursor:
+with conn.cursor() as cursor:
     cursor.execute(query)
-    rows = cursor.fetchall()
+    results = cursor.fetchall()
+    columns = [col[0] for col in cursor.description]
 
 # إعداد pywikibot
 site = pywikibot.Site("ar", "wikipedia")
@@ -45,15 +46,20 @@ content = """{| class="wikitable sortable"
 # إعداد مجموعة للعناصر الفريدة
 processed_qids = set()
 
+# فهرس الأعمدة
+idx_article_name = columns.index("article_name")
+idx_qid = columns.index("wikidata_id")
+
 # ملء الجدول
-for row in rows:
-    qid = row["wikidata_id"]
-    en_title = row["article_name"].replace("_", " ")
+for row in results:
+    article_name = row[idx_article_name]
+    qid = row[idx_qid]
 
     if not qid or qid in processed_qids:
         continue
 
     processed_qids.add(qid)
+    en_title = article_name.replace("_", " ")
 
     content += f"""{{{{مستخدم:FShbib/المقالات الآلية/فيلم/مقترح
 | qid = {qid}
@@ -67,4 +73,4 @@ content += "|}"
 # حفظ الصفحة
 page = pywikibot.Page(site, "مستخدم:Mohammed Qays/أفلام")
 page.text = content
-page.save(summary="بوت:جلب قائمة")
+page.save(summary="بوت: جلب قائمة")
