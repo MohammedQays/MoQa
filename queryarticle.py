@@ -1,12 +1,15 @@
 import toolforge
 import pywikibot
+from SPARQLWrapper import SPARQLWrapper, JSON
 
-# الاتصال بقاعدة بيانات ويكيبيديا الإنجليزية
-conn = toolforge.connect('enwiki')
+class Settings:
+    lang = "enwiki"
+    report_page = "مستخدم:Mohammed Qays/أفلام"
+    edit_summary = "[[وب:بوت|بوت]]: تحديث قائمة."
 
+# استعلام قاعدة بيانات ويكيبيديا الإنجليزية
 query = """
 SELECT
-    en_page.page_title AS article_name,
     pp.pp_value AS wikidata_id
 FROM page AS en_page
 INNER JOIN categorylinks AS cl ON en_page.page_id = cl.cl_from
@@ -27,50 +30,78 @@ ORDER BY en_page.page_touched DESC, en_page.page_title
 LIMIT 100;
 """
 
-# تنفيذ الاستعلام
-with conn.cursor() as cursor:
-    cursor.execute(query)
-    results = cursor.fetchall()
-    columns = [col[0] for col in cursor.description]
+def fetch_wikidata_ids():
+    conn = toolforge.connect(Settings.lang)
+    with conn.cursor() as cursor:
+        cursor.execute(query)
+        results = cursor.fetchall()
+    # استخراج qids وتحويل bytes الى str اذا لزم الأمر
+    qids = []
+    for row in results:
+        qid = row[0]
+        if isinstance(qid, bytes):
+            qid = qid.decode("utf-8")
+        if qid:
+            qids.append(qid)
+    return qids
 
-# إعداد pywikibot
-site = pywikibot.Site("ar", "wikipedia")
+def fetch_labels(qids):
+    sparql = SPARQLWrapper("https://query.wikidata.org/sparql")
+    sparql.setReturnFormat(JSON)
 
-# بداية جدول ويكي
-content = """{| class="wikitable sortable" 
+    labels = {}
+
+    # تقسيم إلى دفعات صغيرة (مثلاً 50)
+    batch_size = 50
+    for i in range(0, len(qids), batch_size):
+        batch = qids[i:i+batch_size]
+        values = " ".join(f"wd:{qid}" for qid in batch)
+        sparql_query = f"""
+        SELECT ?item ?itemLabel WHERE {{
+          VALUES ?item {{ {values} }}
+          SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }}
+        }}
+        """
+        sparql.setQuery(sparql_query)
+        results = sparql.query().convert()
+        for result in results["results"]["bindings"]:
+            qid = result["item"]["value"].split("/")[-1]
+            label = result.get("itemLabel", {}).get("value", qid)
+            labels[qid] = label
+    return labels
+
+def build_wiki_table(qids, labels):
+    content = """{| class="wikitable sortable" 
 |-
 ! عدد الوصلات !! العنصر !! الاسم في ويكيبيديا الإنجليزية !! الاسم العربي في ويكي بيانات !! الإجراء المُقترح
 |-
 """
-
-# إعداد مجموعة للعناصر الفريدة
-processed_qids = set()
-
-# فهرس الأعمدة
-idx_article_name = columns.index("article_name")
-idx_qid = columns.index("wikidata_id")
-
-# ملء الجدول
-for row in results:
-    article_name = row[idx_article_name]
-    qid = row[idx_qid]
-
-    if not qid or qid in processed_qids:
-        continue
-
-    processed_qids.add(qid)
-    en_title = article_name.replace("_", " ")
-
-    content += f"""{{{{مستخدم:FShbib/المقالات الآلية/فيلم/مقترح
+    for qid in qids:
+        en_label = labels.get(qid, qid)
+        # ملاحظة: لم نطلب عدد الوصلات من SPARQL هنا، لو تريد يمكن إضافته لاحقًا
+        content += f"""{{{{مستخدم:FShbib/المقالات الآلية/فيلم/مقترح
 | qid = {qid}
-| arabic = {en_title}
+| arabic = {en_label}
 }}}}
 
 """
+    content += "|}"
+    return content
 
-content += "|}"
+def main():
+    site = pywikibot.Site("ar", "wikipedia")
+    qids = fetch_wikidata_ids()
+    if not qids:
+        print("لم يتم العثور على معرفات ويكي بيانات.")
+        return
 
-# حفظ الصفحة
-page = pywikibot.Page(site, "مستخدم:Mohammed Qays/أفلام")
-page.text = content
-page.save(summary="بوت: جلب قائمة")
+    labels = fetch_labels(qids)
+    content = build_wiki_table(qids, labels)
+
+    page = pywikibot.Page(site, Settings.report_page)
+    page.text = content
+    page.save(Settings.edit_summary)
+    print(f"تم تحديث الصفحة: {Settings.report_page}")
+
+if __name__ == "__main__":
+    main()
