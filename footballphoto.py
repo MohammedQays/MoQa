@@ -6,6 +6,9 @@ FOOTBALL_TEMPLATES = [
     'صندوق معلومات سيرة كرة قدم',
     'معلومات لاعب',
     'صندوق معلومات سيرة ذاتية للاعب كرة قدم',
+    'صندوق معلومات شخص',
+    'صندوق معلومات رياضي',
+    'صندوق معلومات كاتب',
     'Infobox Football biography',
     'Football player infobox',
     'صندوق معلومات سيرة ذاتية في كرة القدم',
@@ -49,12 +52,12 @@ def get_articles_from_database():
     ORDER BY
       p.page_title
     """
-    
+
     conn = toolforge.connect('arwiki')
     cursor = conn.cursor()
     cursor.execute(query)
     results = cursor.fetchall()
-    
+
     return [decode_title(row[0]) for row in results]
 
 def find_infobox_start(text):
@@ -108,8 +111,8 @@ def update_or_add_image(text, image_name):
 def remove_nonempty_caption(text):
     def clean_caption(match):
         value = match.group(2).strip()
-        return '' if not value else ''  
-    return re.sub(r'^\|\s*(تعليق(?:\s*الصورة)?|caption|شرح)\s*=\s*.+$', clean_caption, text, flags=re.MULTILINE)
+        return '' if not value else ''
+    return re.sub(r'^\|\s*(تعليق(?:\s*الصورة)?|caption|شرح|التعليق|تعليق)\s*=\s*.+$', clean_caption, text, flags=re.MULTILINE)
 
 def process_article(title):
     try:
