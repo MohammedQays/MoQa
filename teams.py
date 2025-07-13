@@ -53,7 +53,7 @@ def extract_players_and_manager(en_template_title):
 
     # يلتقط المدير مهما كان وجود title أو لا
     pattern_manager = re.compile(
-        r'\{\{\s*football squad manager\s*(?:\|\s*title\s*=\s*[^|}]*\s*)?\|\s*name\s*=\s*(.*?)\s*\}\}',
+        r'\{\{\s*football squad(?:2)? manager\s*(?:\|\s*title\s*=\s*[^|}]*\s*)?\|\s*name\s*=\s*(.*?)\s*\}\}',
         flags=re.IGNORECASE | re.DOTALL
     )
     m = pattern_manager.search(text)
