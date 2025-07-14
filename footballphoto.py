@@ -99,8 +99,12 @@ def update_or_add_image(text, image_name):
                 found_image = True
                 current = match.group(1).strip()
                 current_clean = re.sub(r'\[\[|\]\]', '', current).split('|')[0].strip()
+
                 if current_clean != image_name:
-                    lines[idx] = f'| {field} = {image_name}'
+                    suffix = ''
+                    if current.endswith('}}'):
+                        suffix = ' }}'
+                    lines[idx] = f'| {field} = {image_name}{suffix}'
                     updated = True
                 break
         if found_image:
