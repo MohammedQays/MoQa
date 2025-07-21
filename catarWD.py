@@ -5,9 +5,10 @@ import pywikibot
 from pywikibot.data.sparql import SparqlQuery
 
 def main():
+    # دعم الوسائط مثل --simulate
     pywikibot.handle_args()
     site = pywikibot.Site('wikidata', 'wikidata')
-    site.login()  
+    site.login()  # يفضّل استخدام BotPassword لتفادي تحذيرات الـAPI
 
     sparql = SparqlQuery(repo=site)
     query = r"""
@@ -30,11 +31,11 @@ def main():
     repo = site.data_repository()
     for row in results:
         qid = row['item'].getID()
-        new_label = row['page_titleAR'].value  
-        old_label = row['LabelAR'].value  
+        new_label = row['page_titleAR'].value  # تم التعديل هنا
+        old_label = row['LabelAR'].value  # تم التعديل هنا
 
         if new_label == old_label:
-            continue  
+            continue  # لا حاجة للتعديل
 
         item = pywikibot.ItemPage(repo, qid)
         try:
