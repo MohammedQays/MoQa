@@ -7,21 +7,41 @@ from pywikibot.data.sparql import SparqlQuery
 def main():
     pywikibot.handle_args()
     site = pywikibot.Site('wikidata', 'wikidata')
-    site.login()  
+    site.login()
 
     sparql = SparqlQuery(repo=site)
     query = r"""
-    SELECT DISTINCT ?item ?LabelAR ?page_titleAR WHERE {
-       ?item wdt:P31 wd:Q4167836 .
-       ?article schema:about ?item ;
-                schema:isPartOf <https://ar.wikipedia.org/> ;
-                schema:name ?page_titleAR .
-       ?item rdfs:label ?LabelAR FILTER(lang(?LabelAR)="ar") .
-       FILTER (?page_titleAR != ?LabelAR)
-       BIND(REGEX(STR(?page_titleAR), "(\\))$") AS ?regexresult1) .
-       FILTER (?regexresult1 = false) .
+    SELECT ?item ?label ?title WHERE {
+      ?article schema:about ?item;
+               schema:isPartOf <https://ar.wikipedia.org/>;
+               schema:name ?title.
+    
+      OPTIONAL {
+        ?item rdfs:label ?label.
+        FILTER (lang(?label) = "ar")
+      }
+
+      FILTER (
+        !BOUND(?label) || 
+        ?label != ?title
+      )
+    
+      FILTER (!CONTAINS(?title, "("))
+      FILTER (!CONTAINS(?title, ")"))
+      FILTER (!CONTAINS(?title, "،"))
+          FILTER (!CONTAINS(?title, "قائمة"))
+
+      FILTER NOT EXISTS { ?item wdt:P31 wd:Q318. }
+      FILTER NOT EXISTS { ?item wdt:P31 wd:Q2488. }
+      FILTER NOT EXISTS { ?item wdt:P31 wd:Q83373. }
+      FILTER NOT EXISTS { ?item wdt:P31 wd:Q11276. }
+      FILTER NOT EXISTS { ?item wdt:P31 wd:Q16945799. }
+      FILTER NOT EXISTS { ?item wdt:P31 wd:Q192078. }
+      FILTER NOT EXISTS { ?item wdt:P31 wd:Q11282. }
+      FILTER NOT EXISTS { ?item wdt:P31 wd:Q184348. }
+      FILTER NOT EXISTS { ?item wdt:P31 wd:Q72803622. }
     }
-    LIMIT 20
+    LIMIT 5
     """
 
     results = sparql.select(query, full_data=True)
@@ -30,18 +50,18 @@ def main():
     repo = site.data_repository()
     for row in results:
         qid = row['item'].getID()
-        new_label = row['page_titleAR'].value  
-        old_label = row['LabelAR'].value  
+        new_label = row['title'].value
+        old_label = row.get('label').value if 'label' in row else None
 
-        if new_label == old_label:
-            continue  
+        if old_label == new_label:
+            continue
 
         item = pywikibot.ItemPage(repo, qid)
         try:
             item.get()
             item.editLabels(
                 labels={'ar': new_label},
-                summary='Correct Arabic label'
+                summary='bot:Correct Arabic label'
             )
             pywikibot.output(f"Edited {qid}: “{old_label}” → “{new_label}”")
         except Exception as e:
