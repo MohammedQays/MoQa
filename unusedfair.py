@@ -69,7 +69,8 @@ WHERE page_namespace = 6
       WHERE page_namespace = 10
         AND page_title = 'صورة_استعمال_عادل_يتيمة'
     )
-  );
+  )
+  LIMIT 10;
 """
 
 # الاتصال بقاعدة البيانات
