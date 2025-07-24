@@ -1,108 +1,96 @@
 import pywikibot
 import toolforge
 import re
-import json
-import os
 
 # إعدادات البوت
 class settings:
     lang = 'arwiki'
-    editsumm = "[[وب:بوت|بوت]]: استبدال تحويلات قوالب."
-    debug = "yes"  # "no" للحفظ، "yes" للطباعة فقط
-    edit_limit = 10
-    redirects_file = "redirects.json"
+    editsumm = "[[وب:بوت|بوت]]: استبدال تحويلات قوالب من لغات بديلة بأسمائها الأصلية."
+    debug = "yes"  # "no" للحفظ، أو "yes" للطباعة فقط
+    edit_limit = 20
 
-# ----------------- المرحلة 1: استخراج التحويلات -----------------
-def fetch_redirects_and_save():
-    conn = toolforge.connect(settings.lang, 'analytics')
-    query = """
-    SELECT
-      p1.page_title AS redirect_title,
-      rd.rd_title AS target_title
-    FROM
-      page AS p1
-    JOIN
-      categorylinks AS cl ON cl.cl_from = p1.page_id
-    JOIN
-      redirect AS rd ON rd.rd_from = p1.page_id
-    WHERE
-      cl.cl_to = "تحويلات_قوالب_من_لغات_بديلة"
-      AND p1.page_namespace = 10
-      AND rd.rd_namespace = 10;
-    """
+# الاتصال بقاعدة البيانات
+conn = toolforge.connect(settings.lang, 'analytics')
+site = pywikibot.Site()
 
-    with conn.cursor() as cursor:
-        cursor.execute(query)
-        results = cursor.fetchall()
+# الاستعلام الجديد المعتمد على linktarget
+query = """
+SELECT
+  target.lt_title AS original_template,
+  redirect.lt_title AS redirect_template,
+  trans.page_namespace AS page_namespace,
+  trans.page_title AS page_title
+FROM
+  page AS redirect_page
+JOIN
+  categorylinks AS cl ON cl.cl_from = redirect_page.page_id
+JOIN
+  redirect AS rd ON rd.rd_from = redirect_page.page_id
+JOIN
+  linktarget AS redirect ON redirect.lt_namespace = redirect_page.page_namespace AND redirect.lt_title = redirect_page.page_title
+JOIN
+  linktarget AS target ON target.lt_namespace = rd.rd_namespace AND target.lt_title = rd.rd_title
+JOIN
+  templatelinks AS tl ON tl.tl_target_id = redirect.lt_id
+JOIN
+  page AS trans ON trans.page_id = tl.tl_from
+WHERE
+  cl.cl_to = "تحويلات_قوالب_من_لغات_بديلة"
+  AND redirect.lt_namespace = 10
+ORDER BY
+  target.lt_title, trans.page_title
+LIMIT 10;
+"""
 
-    redirect_map = {
-        row[0].decode('utf-8') if isinstance(row[0], bytes) else row[0]:
-        row[1].decode('utf-8') if isinstance(row[1], bytes) else row[1]
-        for row in results
-    }
+# تنفيذ الاستعلام
+with conn.cursor() as cursor:
+    cursor.execute(query)
+    results = cursor.fetchall()
 
-    with open(settings.redirects_file, "w", encoding="utf-8") as f:
-        json.dump(redirect_map, f, ensure_ascii=False, indent=2)
+# إعداد عداد التعديلات
+edit_count = 0
 
-# ----------------- المرحلة 2: تحميل الملف ومعالجة الصفحات -----------------
+# دالة لبناء التعبير المنتظم لأي قالب
 def make_template_pattern(template_name):
     name_pattern = re.escape(template_name.replace('_', ' '))
     return re.compile(r'(?s)\{\{\s*' + name_pattern + r'\b(.*?)\}\}', re.IGNORECASE)
 
-def replace_templates(text, redirect_map):
-    replaced = False
-    for redirect, target in redirect_map.items():
-        pattern = make_template_pattern(redirect)
-        text, count = pattern.subn(r'{{' + target.replace('_', ' ') + r'\1}}', text)
-        if count > 0:
-            replaced = True
-    return text, replaced
+# دالة الاستبدال
+def replace_template_once(text, from_template, to_template):
+    pattern = make_template_pattern(from_template)
+    new_text, count = pattern.subn(r'{{' + to_template.replace('_', ' ') + r'\1}}', text)
+    return new_text, count > 0
 
-def process_pages():
-    site = pywikibot.Site()
+# معالجة النتائج
+seen_pages = set()  # لتفادي تكرار التعديل على نفس الصفحة
 
-    with open(settings.redirects_file, "r", encoding="utf-8") as f:
-        redirect_map = json.load(f)
+for row in results:
+    if edit_count >= settings.edit_limit:
+        break
 
-    all_template_titles = [f"Template:{k}" for k in redirect_map.keys()]
-    processed_titles = set()
-    edit_count = 0
+    original_template = row[0]
+    redirect_template = row[1]
+    page_namespace = row[2]
+    page_title = row[3]
 
-    for title in all_template_titles:
-        if edit_count >= settings.edit_limit:
-            break
+    full_title = f"{page_title}" if page_namespace == 0 else f"{site.namespace(page_namespace)}:{page_title}"
+    if full_title in seen_pages:
+        continue
 
-        template_page = pywikibot.Page(site, title)
-
-        try:
-            ref_pages = template_page.getReferences(only_template_inclusion=True, follow_redirects=False)
-        except Exception:
+    page = pywikibot.Page(site, full_title)
+    try:
+        if not page.exists() or page.isRedirectPage():
             continue
 
-        for page in ref_pages:
-            if edit_count >= settings.edit_limit:
-                break
-            if page.title() in processed_titles:
-                continue
+        original_text = page.text
+        new_text, changed = replace_template_once(original_text, redirect_template, original_template)
 
-            try:
-                if not page.exists() or page.isRedirectPage():
-                    continue
+        if changed:
+            if settings.debug == "no":
+                page.text = new_text
+                page.save(settings.editsumm)
+            edit_count += 1
+            seen_pages.add(full_title)
 
-                original_text = page.text
-                new_text, changed = replace_templates(original_text, redirect_map)
-
-                if changed:
-                    if settings.debug == "no":
-                        page.text = new_text
-                        page.save(settings.editsumm)
-                    processed_titles.add(page.title())
-                    edit_count += 1
-            except Exception:
-                continue
-
-# ----------------- تشغيل المراحل -----------------
-if not os.path.exists(settings.redirects_file):
-    fetch_redirects_and_save()
-
-process_pages()
+    except Exception:
+        continue
