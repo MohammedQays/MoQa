@@ -2,95 +2,80 @@ import pywikibot
 import toolforge
 import re
 
-# إعدادات البوت
 class settings:
     lang = 'arwiki'
-    editsumm = "[[وب:بوت|بوت]]: استبدال تحويلات قوالب من لغات بديلة بأسمائها الأصلية."
-    debug = "yes"  # "no" للحفظ، أو "yes" للطباعة فقط
-    edit_limit = 20
+    editsumm = "[[وب:بوت|بوت]]: استبدال القوالب التحويلية باسم القالب الأصلي."
+    debug = "no"
 
-# الاتصال بقاعدة البيانات
-conn = toolforge.connect(settings.lang, 'analytics')
-site = pywikibot.Site()
-
-# الاستعلام الجديد المعتمد على linktarget
 query = """
 SELECT
-  target.lt_title AS original_template,
-  redirect.lt_title AS redirect_template,
-  trans.page_namespace AS page_namespace,
-  trans.page_title AS page_title
+  p.page_title,
+  rd.rd_title AS original_template,
+  lt.lt_title AS redirect_template
 FROM
-  page AS redirect_page
+  templatelinks AS tl
 JOIN
-  categorylinks AS cl ON cl.cl_from = redirect_page.page_id
+  linktarget AS lt ON tl.tl_target_id = lt.lt_id
 JOIN
-  redirect AS rd ON rd.rd_from = redirect_page.page_id
+  page AS tpl ON tpl.page_namespace = lt.lt_namespace AND tpl.page_title = lt.lt_title
 JOIN
-  linktarget AS redirect ON redirect.lt_namespace = redirect_page.page_namespace AND redirect.lt_title = redirect_page.page_title
+  categorylinks AS cl ON cl.cl_from = tpl.page_id
 JOIN
-  linktarget AS target ON target.lt_namespace = rd.rd_namespace AND target.lt_title = rd.rd_title
+  redirect AS rd ON rd.rd_from = tpl.page_id
 JOIN
-  templatelinks AS tl ON tl.tl_target_id = redirect.lt_id
-JOIN
-  page AS trans ON trans.page_id = tl.tl_from
+  page AS p ON p.page_id = tl.tl_from
 WHERE
   cl.cl_to = "تحويلات_قوالب_من_لغات_بديلة"
-  AND redirect.lt_namespace = 10
-ORDER BY
-  target.lt_title, trans.page_title
-LIMIT 10;
+  AND lt.lt_namespace = 10
+  AND p.page_namespace = 0
+  AND p.page_is_redirect = 0
+LIMIT 200;
 """
 
-# تنفيذ الاستعلام
+conn = toolforge.connect(settings.lang, 'analytics')
+
+page_templates = {}
+
 with conn.cursor() as cursor:
     cursor.execute(query)
     results = cursor.fetchall()
+    for row in results:
+        page_title = row[0].decode("utf-8") if isinstance(row[0], bytes) else row[0]
+        original_template = row[1].decode("utf-8") if isinstance(row[1], bytes) else row[1]
+        redirect_template = row[2].decode("utf-8") if isinstance(row[2], bytes) else row[2]
 
-# إعداد عداد التعديلات
-edit_count = 0
+        if page_title not in page_templates:
+            page_templates[page_title] = []
+        page_templates[page_title].append((redirect_template, original_template))
 
-# دالة لبناء التعبير المنتظم لأي قالب
-def make_template_pattern(template_name):
-    name_pattern = re.escape(template_name.replace('_', ' '))
-    return re.compile(r'(?s)\{\{\s*' + name_pattern + r'\b(.*?)\}\}', re.IGNORECASE)
+site = pywikibot.Site()
+site.login()
 
-# دالة الاستبدال
-def replace_template_once(text, from_template, to_template):
-    pattern = make_template_pattern(from_template)
-    new_text, count = pattern.subn(r'{{' + to_template.replace('_', ' ') + r'\1}}', text)
-    return new_text, count > 0
+def make_template_regex(template_names):
+    pattern_multiline = r'{{\s*(' + '|'.join(re.escape(t) for t in template_names) + r')\s*((?:\|.*?)*?)}}'
+    return re.compile(pattern_multiline, re.DOTALL)
 
-# معالجة النتائج
-seen_pages = set()  # لتفادي تكرار التعديل على نفس الصفحة
-
-for row in results:
-    if edit_count >= settings.edit_limit:
-        break
-
-    original_template = row[0]
-    redirect_template = row[1]
-    page_namespace = row[2]
-    page_title = row[3]
-
-    full_title = f"{page_title}" if page_namespace == 0 else f"{site.namespace(page_namespace)}:{page_title}"
-    if full_title in seen_pages:
-        continue
-
-    page = pywikibot.Page(site, full_title)
+for page_title, tpl_list in page_templates.items():
+    page = pywikibot.Page(site, page_title.replace('_', ' '))
     try:
-        if not page.exists() or page.isRedirectPage():
-            continue
+        text = page.get()
 
-        original_text = page.text
-        new_text, changed = replace_template_once(original_text, redirect_template, original_template)
+        for redirect_tpl, original_tpl in tpl_list:
+            regex = make_template_regex([redirect_tpl])
 
-        if changed:
+            def replacer(match):
+                params = match.group(2) or ''
+                return "{{{{{0}{1}}}}}".format(original_tpl, params)
+
+            new_text = regex.sub(replacer, text)
+
+            if new_text != text:
+                text = new_text
+
+        if text != page.get():
             if settings.debug == "no":
-                page.text = new_text
+                page.text = text
                 page.save(settings.editsumm)
-            edit_count += 1
-            seen_pages.add(full_title)
 
-    except Exception:
-        continue
+    except:
+        pass
