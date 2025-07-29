@@ -15,7 +15,8 @@ SELECT page.page_title
 FROM page
 JOIN categorylinks ON categorylinks.cl_from = page.page_id
 WHERE categorylinks.cl_to = 'صيانة_قوالب_لغة'
-AND page.page_namespace = 0;
+AND page.page_namespace = 0
+LIMIT 10;
 '''
 
 # التعبيرات المنتظمة للقوالب المستهدفة
