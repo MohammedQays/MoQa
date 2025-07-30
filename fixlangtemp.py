@@ -6,7 +6,7 @@ import re
 # إعدادات البوت
 class settings:
     lang = 'arwiki'
-    editsumm = "[[وب:بوت|بوت]]: استبدال قوالب وصلة لغة بروابط ويكي أو قالب اللغة."
+    editsumm = "[[وب:بوت|بوت]]: صيانة قوالب اللغة."
     debug = "no"  # لتجربة بدون حفظ، اجعلها "yes"
 
 # استعلام SQL لجلب المقالات ضمن تصنيف "صيانة قوالب لغة"
@@ -16,7 +16,7 @@ FROM page
 JOIN categorylinks ON categorylinks.cl_from = page.page_id
 WHERE categorylinks.cl_to = 'صيانة_قوالب_لغة'
 AND page.page_namespace = 0
-LIMIT 10;
+LIMIT 1000;
 '''
 
 # التعبيرات المنتظمة للقوالب ذات الوسيط الواحد
