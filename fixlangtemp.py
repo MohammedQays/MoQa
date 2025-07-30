@@ -59,7 +59,7 @@ def fix_lang_templates(text):
 
     # استبدال {{وصلة لغة|xx|title}} أو {{لغ|xx|title}} بـ ({{اللغة|xx|title}})
     new_text = re.sub(
-        r'\{\{\s*(?:وصلة\s*لغة|لغ)\s*\|\s*([a-z\-]+)\s*\|\s*([^\|\}]+?)\s*\}\}',
+        r'\{\{\s*(?:وصلة\s*لغة|لغ)\s*\|\s*([\w\-]+)\s*\|\s*([^\|\}]+?)\s*\}\}',
         r'({{اللغة|\1|\2}})',
         new_text,
         flags=re.IGNORECASE
