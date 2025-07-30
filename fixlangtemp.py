@@ -6,7 +6,7 @@ import re
 # إعدادات البوت
 class settings:
     lang = 'arwiki'
-    editsumm = "[[وب:بوت|بوت]]: استبدال قوالب وصلة لغة بروابط ويكي."
+    editsumm = "[[وب:بوت|بوت]]: استبدال قوالب وصلة لغة بروابط ويكي أو قالب اللغة."
     debug = "no"  # لتجربة بدون حفظ، اجعلها "yes"
 
 # استعلام SQL لجلب المقالات ضمن تصنيف "صيانة قوالب لغة"
@@ -19,7 +19,7 @@ AND page.page_namespace = 0
 LIMIT 10;
 '''
 
-# التعبيرات المنتظمة للقوالب المستهدفة
+# التعبيرات المنتظمة للقوالب ذات الوسيط الواحد
 lang_templates = {
     r'\{\{\s*(?:وصلة\s*لغة|لغ)\s*\|\s*عربية\s*\}\}': r'[[اللغة العربية|العربية]]',
     r'\{\{\s*(?:وصلة\s*لغة|لغ)\s*\|\s*إنجليزية\s*\}\}': r'[[اللغة الإنجليزية|الإنجليزية]]',
@@ -54,10 +54,21 @@ def execute_query():
         return []
 
 def fix_lang_templates(text):
-    """استبدال قوالب وصلة لغة بروابط ويكي."""
+    """استبدال قوالب وصلة لغة بروابط ويكي أو قالب اللغة."""
     new_text = text
+
+    # استبدال {{وصلة لغة|en|title}} أو {{لغ|en|title}} بـ ({{اللغة|en|title}})
+    new_text = re.sub(
+        r'\{\{\s*(?:وصلة\s*لغة|لغ)\s*\|\s*([a-z\-]+)\s*\|\s*([^\|\}]+?)\s*\}\}',
+        r'({{اللغة|\1|\2}})',
+        new_text,
+        flags=re.IGNORECASE
+    )
+
+    # استبدال القوالب ذات الوسيط الواحد حسب القائمة
     for regex, repl in compiled_lang_templates:
         new_text = regex.sub(repl, new_text)
+
     return new_text.strip()
 
 def process_page(title, site):
@@ -76,6 +87,7 @@ def process_page(title, site):
             page.save(summary=settings.editsumm)
         else:
             print(f"تجربة فقط: {title}")
+            print(new_text)
 
 def main():
     site = pywikibot.Site('ar', 'wikipedia')
