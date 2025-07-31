@@ -15,7 +15,7 @@ def main():
       ?article schema:about ?item;
                schema:isPartOf <https://ar.wikipedia.org/>;
                schema:name ?title.
-    
+
       OPTIONAL {
         ?item rdfs:label ?label.
         FILTER (lang(?label) = "ar")
@@ -25,11 +25,11 @@ def main():
         !BOUND(?label) || 
         ?label != ?title
       )
-    
+
       FILTER (!CONTAINS(?title, "("))
       FILTER (!CONTAINS(?title, ")"))
       FILTER (!CONTAINS(?title, "،"))
-          FILTER (!CONTAINS(?title, "قائمة"))
+      FILTER (!CONTAINS(?title, "قائمة"))
 
       FILTER NOT EXISTS { ?item wdt:P31 wd:Q318. }
       FILTER NOT EXISTS { ?item wdt:P31 wd:Q2488. }
@@ -48,12 +48,16 @@ def main():
     pywikibot.output(f"Fetched {len(results)} results from SPARQL")
 
     repo = site.data_repository()
+
     for row in results:
         qid = row['item'].getID()
         new_label = row['title'].value
-        old_label = row.get('label').value if 'label' in row else None
+
+        label_data = row.get('label')
+        old_label = label_data.value if label_data is not None else None
 
         if old_label == new_label:
+            pywikibot.output(f"Skipping {qid}: label already correct ({new_label})")
             continue
 
         item = pywikibot.ItemPage(repo, qid)
