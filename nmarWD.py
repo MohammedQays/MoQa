@@ -12,37 +12,20 @@ def main():
 
     sparql = SparqlQuery(repo=site)
     query = r"""
-    SELECT ?item ?label ?title WHERE {
-      ?article schema:about ?item;
-               schema:isPartOf <https://ar.wikipedia.org/>;
-               schema:name ?title.
+    SELECT ?item ?itemLabel ?sitelink WHERE {
+      ?item rdfs:label ?itemLabel.
+      FILTER(LANG(?itemLabel) = "ar").
 
-      OPTIONAL {
-        ?item rdfs:label ?label.
-        FILTER (lang(?label) = "ar")
-      }
+      ?sitelink_schema schema:about ?item ;
+                       schema:isPartOf <https://ar.wikipedia.org/> ;
+                       schema:name ?sitelink .
 
-      FILTER (
-        !BOUND(?label) || 
-        ?label != ?title
-      )
-
-      FILTER (!CONTAINS(?title, "("))
-      FILTER (!CONTAINS(?title, ")"))
-      FILTER (!CONTAINS(?title, "،"))
-      FILTER (!CONTAINS(?title, "قائمة"))
-
-      FILTER NOT EXISTS { ?item wdt:P31 wd:Q318. }
-      FILTER NOT EXISTS { ?item wdt:P31 wd:Q2488. }
-      FILTER NOT EXISTS { ?item wdt:P31 wd:Q83373. }
-      FILTER NOT EXISTS { ?item wdt:P31 wd:Q11276. }
-      FILTER NOT EXISTS { ?item wdt:P31 wd:Q16945799. }
-      FILTER NOT EXISTS { ?item wdt:P31 wd:Q192078. }
-      FILTER NOT EXISTS { ?item wdt:P31 wd:Q11282. }
-      FILTER NOT EXISTS { ?item wdt:P31 wd:Q184348. }
-      FILTER NOT EXISTS { ?item wdt:P31 wd:Q72803622. }
+      FILTER(?itemLabel != ?sitelink)
+      FILTER(!CONTAINS(?sitelink, "("))
+      FILTER(!CONTAINS(?sitelink, "قائمة"))
+      FILTER(!CONTAINS(?sitelink, "،"))
     }
-    LIMIT 200
+    LIMIT 80
     """
 
     results = sparql.select(query, full_data=True)
@@ -53,9 +36,9 @@ def main():
 
     for row in results:
         qid = row['item'].getID()
-        new_label = row['title'].value
+        new_label = row['sitelink'].value  # تغيير 'title' إلى 'sitelink'
 
-        label_data = row.get('label')
+        label_data = row.get('itemLabel')
         old_label = label_data.value if label_data is not None else None
 
         if old_label == new_label:
