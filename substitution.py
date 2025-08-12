@@ -5,7 +5,7 @@ import json
 class Settings:
     lang = 'arwiki'
     json_page = "مستخدم:MoQabot/substitution.json"
-    target_page = "مستخدم:Mohammed Qays/طلبات"
+    target_page = "مستخدم:Mohammed Qays/طلبات1"
     editsumm = "[[وب:بوت|بوت]]: جلب قائمة."
     debug = "no"
 
@@ -18,13 +18,13 @@ def load_json(site, page_title):
     except Exception as e:
         raise SystemExit(f"فشل تحميل أو تحليل ملف JSON من الصفحة {page_title}: {e}")
 
-def execute_query(lang, search_word):
+def execute_query(lang, search_word, namespace):
     query = f'''
     SELECT page.page_title
     FROM page
     LEFT JOIN redirect
       ON redirect.rd_from = page.page_id
-    WHERE page.page_namespace = 0
+    WHERE page.page_namespace = {namespace}
       AND page.page_title LIKE '%{search_word}%'
       AND redirect.rd_from IS NULL
     LIMIT 1000
@@ -71,11 +71,12 @@ def update_page():
 
     search_word = data.get("search")
     replacements = data.get("replacements", {})
+    namespace = data.get("namespace", 0)  # الافتراضي 0 (مساحة أسماء المقالات)
 
     if not search_word:
         raise SystemExit("لم يتم تحديد كلمة البحث (search) في ملف JSON")
 
-    titles = execute_query(Settings.lang, search_word)
+    titles = execute_query(Settings.lang, search_word, namespace)
     titles.sort()
 
     replaced_pairs = apply_replacements(titles, replacements)
@@ -87,7 +88,6 @@ def update_page():
         target_page_obj.put(content, summary=Settings.editsumm)
         update_json_page_flag(site, json_page_obj, data)
     else:
-        # في وضع debug يمكن إضافة كود عرض لكن حسب طلبك تم الحذف
         pass
 
 if __name__ == "__main__":
