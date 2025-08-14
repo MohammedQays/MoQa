@@ -25,7 +25,7 @@ def main():
       FILTER(!CONTAINS(?sitelink, "سفراء"))
       FILTER(!CONTAINS(?sitelink, "،"))
     }
-    LIMIT 20
+    LIMIT 15
     """
 
     results = sparql.select(query, full_data=True)
@@ -36,7 +36,7 @@ def main():
 
     for row in results:
         qid = row['item'].getID()
-        new_label = row['sitelink'].value  # تغيير 'title' إلى 'sitelink'
+        new_label = row['sitelink'].value  
 
         label_data = row.get('itemLabel')
         old_label = label_data.value if label_data is not None else None
@@ -64,7 +64,6 @@ def main():
             else:
                 pywikibot.error(f"Failed to edit {qid}: {e}")
 
-    # بناء نص جديد لصفحة المستخدم بالكامل مع العناصر الجديدة فقط
     new_text = "\n".join(conflict_entries) + "\n"
 
     userpage = pywikibot.Page(site, "User:Mohammed Qays/MoQabot")
@@ -73,3 +72,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
