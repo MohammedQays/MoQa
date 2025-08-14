@@ -22,8 +22,10 @@ def main():
 
       FILTER(?itemLabel != ?sitelink)
       FILTER(!CONTAINS(?sitelink, "("))
+      FILTER(!CONTAINS(?sitelink, "سفراء"))
+      FILTER(!CONTAINS(?sitelink, "،"))
     }
-    LIMIT 1000
+    LIMIT 20
     """
 
     results = sparql.select(query, full_data=True)
