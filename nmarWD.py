@@ -12,7 +12,7 @@ def main():
 
     sparql = SparqlQuery(repo=site)
     query = r"""
-    SELECT ?item ?itemLabel ?sitelink WHERE {
+     SELECT ?item ?itemLabel ?sitelink WHERE {
       ?item rdfs:label ?itemLabel.
       FILTER(LANG(?itemLabel) = "ar").
 
@@ -22,10 +22,8 @@ def main():
 
       FILTER(?itemLabel != ?sitelink)
       FILTER(!CONTAINS(?sitelink, "("))
-      FILTER(!CONTAINS(?sitelink, "قائمة"))
-      FILTER(!CONTAINS(?sitelink, "،"))
     }
-    LIMIT 80
+    LIMIT 1000
     """
 
     results = sparql.select(query, full_data=True)
