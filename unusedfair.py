@@ -24,7 +24,7 @@ WHERE page_namespace = 6
     FROM categorylinks AS cl1
     WHERE cl1.cl_from = page_id
       AND (
-        cl1.cl_to = "جميع_الملفات_غير_الحرة"
+        cl1.cl_to IN ("جميع_الملفات_غير_الحرة", "جميع_الشعارات_غير_الحرة")
         OR EXISTS (
           SELECT *
           FROM page AS p2
@@ -35,7 +35,7 @@ WHERE page_namespace = 6
               FROM categorylinks AS cl2
               WHERE cl2.cl_from = p2.page_id
                 AND (
-                  cl2.cl_to = "جميع_الملفات_غير_الحرة"
+                  cl2.cl_to IN ("جميع_الملفات_غير_الحرة", "جميع_الشعارات_غير_الحرة")
                   OR EXISTS (
                     SELECT *
                     FROM page AS p3
@@ -45,7 +45,7 @@ WHERE page_namespace = 6
                         SELECT *
                         FROM categorylinks AS cl3
                         WHERE cl3.cl_from = p3.page_id
-                          AND cl3.cl_to = "جميع_الملفات_غير_الحرة"
+                          AND cl3.cl_to IN ("جميع_الملفات_غير_الحرة", "جميع_الشعارات_غير_الحرة")
                       )
                   )
                 )
@@ -57,7 +57,7 @@ WHERE page_namespace = 6
     SELECT *
     FROM imagelinks
     WHERE il_to = page_title
-      AND il_from_namespace IN (0, 1, 2, 3, 4, 5, 11, 12, 100, 118)
+      AND il_from_namespace IN (0, 1, 2, 3, 4, 5, 10, 11, 12, 100, 118)
   )
   AND DATEDIFF(NOW(), img_timestamp) > 7
   AND page_id NOT IN (
