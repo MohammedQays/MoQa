@@ -8,8 +8,26 @@ class settings:
     editsumm = "[[وب:بوت|بوت]]: وسم صورة استعمال عادل يتيمة."
     debug = "no"  # اجعلها "yes" للتجربة دون نشر
 
+# قاموس الأشهر بالعربية
+arabic_months = {
+    1: "يناير",
+    2: "فبراير",
+    3: "مارس",
+    4: "أبريل",
+    5: "مايو",
+    6: "يونيو",
+    7: "يوليو",
+    8: "أغسطس",
+    9: "سبتمبر",
+    10: "أكتوبر",
+    11: "نوفمبر",
+    12: "ديسمبر"
+}
+
 # التاريخ الحالي
-today = date.today().isoformat()
+today = date.today()
+today_iso = today.isoformat()
+today_human = f"{today.day} {arabic_months[today.month]} {today.year}"  # مثل: 20 أغسطس 2025
 
 # استعلام الملفات غير الحرة اليتيمة
 query = f"""
@@ -90,17 +108,17 @@ for row in results:
     try:
         text = page.get()
     except pywikibot.NoPage:
-        continue  # تجاهل الصفحات غير الموجودة
+        continue
     except pywikibot.IsRedirectPage:
-        continue  # تجاهل التحويلات
+        continue
 
     # التحقق من عدم وجود القالب مسبقاً
     if "صورة استعمال عادل يتيمة" in text:
         continue
 
-    new_template = f"{{{{صورة استعمال عادل يتيمة|تاريخ={today}}}}}"
+    new_template = f"{{{{صورة استعمال عادل يتيمة|تاريخ={today_iso}}}}}"
 
-    # الإضافة في نهاية الصفحة (يمكن تعديل الموقع حسب السياق)
+    # الإضافة في نهاية الصفحة
     new_text = text.strip() + "\n\n" + new_template
 
     if settings.debug == "no":
@@ -108,3 +126,14 @@ for row in results:
         page.save(settings.editsumm)
     else:
         print(f"== Preview: {page.title()} ==\n{new_text}\n{'='*40}")
+
+# إنشاء التصنيف بعد إكمال الملفات
+cat_title = f"تصنيف:ملفات غير حرة يتيمة منذ {today_human}"
+cat_page = pywikibot.Page(site, cat_title)
+
+if not cat_page.exists():
+    cat_page.text = "{{تصنيف صيانة}}"
+    if settings.debug == "no":
+        cat_page.save("[[وب:بوت|بوت]]: إنشاء تصنيف صيانة تلقائي")
+    else:
+        print(f"== Preview new category: {cat_page.title()} ==\n{cat_page.text}\n{'='*40}")
