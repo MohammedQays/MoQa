@@ -1,14 +1,13 @@
 import pywikibot
 import toolforge
 from datetime import datetime, timezone
-import math
 
 # إعدادات البوت
 class settings:
     lang = 'arwiki'
     base_report_title = "ويكيبيديا:تقارير قاعدة البيانات/قوالب غير مستخدمة"
     editsumm = "[[وب:بوت|بوت]]: تحديث."
-    debug = "no"
+    debug = "no"  # اجعلها yes للمعاينة فقط
 
 # قائمة الشهور بالعربية
 arabic_months = {
@@ -27,13 +26,13 @@ def format_timestamp_arabic(ts_bytes):
         return f"{day} {arabic_months.get(month, month)} {year}"
     return ts  # fallback
 
-# الوقت الحالي
+# إعداد التاريخ الحالي
 now = datetime.now(timezone.utc)
 time_part = now.strftime("%H:%M")
 day = str(int(now.strftime("%d")))
 month_ar = arabic_months[now.strftime("%m")]
 year = now.strftime("%Y")
-formatted_time = f"<onlyinclude>{time_part}، {day} {month_ar} {year} (ت ع م)</onlyinclude>"
+formatted_time = f"{time_part}، {day} {month_ar} {year} (ت ع م)"
 
 # الاستعلام
 query = """
@@ -53,6 +52,7 @@ WHERE
     page_namespace = 10
     AND page_is_redirect = 0
     AND tl_target_id IS NULL
+    AND page_title NOT LIKE '%/شرح'
     AND page_title NOT IN (
         SELECT page_title
         FROM page
@@ -75,20 +75,18 @@ with conn.cursor() as cursor:
     cursor.execute(query)
     results = cursor.fetchall()
 
-# تقسيم النتائج
+# تقسيم النتائج إلى أجزاء فرعية (1000 نتيجة لكل صفحة)
 chunk_size = 1000
 chunks = [results[i:i+chunk_size] for i in range(0, len(results), chunk_size)]
 
-# توليد الصفحات
-page_titles = []
+# توليد الصفحات الفرعية فقط
 for i, chunk in enumerate(chunks, start=1):
-    report_title = f"{settings.base_report_title}/{i}"
-    page_titles.append(report_title)
-    content = f"""قوالب غير مستخدمة؛ البيانات حتى الساعة {formatted_time}. يُحدَّث هذا التقرير يوميًا.
+    subpage_title = f"{settings.base_report_title}/{i}"
+    content = f"""قوالب غير مستخدمة؛ البيانات حتى الساعة <onlyinclude>{formatted_time}</onlyinclude>. يُحدَّث هذا التقرير يوميًا.
 
-{{{{أرقام صفوف ثابتة}}}}
-{{| class="wikitable sortable static-row-numbers static-row-header-text"
+{{| class="wikitable sortable"
 |- style="white-space: nowrap;"
+! رقم
 ! القالب
 ! تاريخ الإنشاء
 ! آخر تعديل
@@ -96,38 +94,19 @@ for i, chunk in enumerate(chunks, start=1):
 ! المراجعات
 """
 
-    for row in chunk:
+    for idx, row in enumerate(chunk, start=1):
         title = row[1].decode("utf-8") if isinstance(row[1], bytes) else row[1]
         first = format_timestamp_arabic(row[2])
         latest = format_timestamp_arabic(row[3])
         authors = row[4]
         revisions = row[5]
-        content += f"|-\n| [[:قالب:{title}|{title.replace('_', ' ')}]] || {first} || {latest} || {authors} || {revisions}\n"
+        content += f"|-\n| {idx} || [[:قالب:{title.replace('_', ' ')}]] || {first} || {latest} || {authors} || {revisions}\n"
 
     content += "|}"
 
-    page = pywikibot.Page(site, report_title)
+    page = pywikibot.Page(site, subpage_title)
     if settings.debug == "no":
         page.text = content
         page.save(settings.editsumm)
     else:
-        print(f"== {report_title} ==\n{content}")
-
-# إنشاء صفحة الفهرس
-index_content = f"""قوالب غير مستخدمة؛ البيانات حتى الساعة {formatted_time}. يُحدَّث هذا التقرير يوميًا.
-
-== الصفحات ==
-"""
-for idx, title in enumerate(page_titles, start=1):
-    index_content += f"# [[{title}|صفحة {idx}]]\n"
-
-index_page = pywikibot.Page(site, settings.base_report_title)
-if settings.debug == "no":
-    index_page.text = index_content
-    index_page.save(settings.editsumm)
-else:
-    print("== Index Preview ==\n" + index_content)
-
-
-
-
+        print(f"== Preview of {subpage_title} ==\n{content}")
