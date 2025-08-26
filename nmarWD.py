@@ -12,20 +12,17 @@ def main():
 
     sparql = SparqlQuery(repo=site)
     query = r"""
-     SELECT ?item ?itemLabel ?sitelink WHERE {
-      ?item rdfs:label ?itemLabel.
-      FILTER(LANG(?itemLabel) = "ar").
-
-      ?sitelink_schema schema:about ?item ;
-                       schema:isPartOf <https://ar.wikipedia.org/> ;
-                       schema:name ?sitelink .
-
-      FILTER(?itemLabel != ?sitelink)
-      FILTER(!CONTAINS(?sitelink, "("))
-      FILTER(!CONTAINS(?sitelink, "سفراء"))
-      FILTER(!CONTAINS(?sitelink, "،"))
+    SELECT DISTINCT ?item ?LabelAR ?page_titleAR WHERE {
+       ?item wdt:P31 wd:Q4167836 .
+       ?article schema:about ?item ;
+                schema:isPartOf <https://ar.wikipedia.org/> ;
+                schema:name ?page_titleAR .
+       ?item rdfs:label ?LabelAR filter (lang(?LabelAR) = "ar") .
+       FILTER (?page_titleAR != ?LabelAR)
+       BIND( REGEX(STR(?page_titleAR), "(\\))$") AS ?regexresult1 ) .
+       FILTER( ?regexresult1 = false ) .
     }
-    LIMIT 15
+    LIMIT 100
     """
 
     results = sparql.select(query, full_data=True)
@@ -36,9 +33,9 @@ def main():
 
     for row in results:
         qid = row['item'].getID()
-        new_label = row['sitelink'].value  
+        new_label = row['page_titleAR'].value  
 
-        label_data = row.get('itemLabel')
+        label_data = row.get('LabelAR')
         old_label = label_data.value if label_data is not None else None
 
         if old_label == new_label:
@@ -72,5 +69,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
