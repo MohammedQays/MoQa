@@ -52,7 +52,7 @@ WHERE
     page_namespace = 10
     AND page_is_redirect = 0
     AND tl_target_id IS NULL
-    AND page_title NOT LIKE '%/شرح'
+    AND page_title NOT REGEXP '/(شرح|ملعب|مختبر|rater-data\\.js)$'
     AND page_title NOT IN (
         SELECT page_title
         FROM page
