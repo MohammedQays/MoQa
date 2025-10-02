@@ -6,21 +6,25 @@ class settings:
     editsumm = "[[وب:بوت|بوت]]: استيراد وحدة من الإنجليزية."
     debug = "no"  # اجعلها "no" للتشغيل الفعلي
 
-# الاستعلام: وحدات Location_map في الإنجليزية غير الموجودة بالعربية وغير التحويلات
+# الاستعلام الجديد
 query = """
 SELECT DISTINCT
+  CONCAT('[[:en:Module:', p.page_title, ']]') AS english_link,
+  CONCAT('[[وحدة:', REPLACE(p.page_title, '_', ' '), ']]') AS arabic_suggested,
   p.page_title
 FROM enwiki_p.page AS p
 LEFT JOIN enwiki_p.langlinks AS ll
-  ON ll.ll_from = p.page_id
-  AND ll.ll_lang = 'ar'
+  ON ll.ll_from = p.page_id AND ll.ll_lang = 'ar'
+LEFT JOIN enwiki_p.page_props AS pp
+  ON pp.pp_page = p.page_id AND pp.pp_propname = 'wikibase_item'
 WHERE p.page_namespace = 828
   AND p.page_title LIKE 'Location_map%'
   AND p.page_title NOT LIKE '%/doc%'
   AND p.page_title NOT LIKE '%/sandbox%'
   AND ll.ll_from IS NULL
   AND p.page_is_redirect = 0
-LIMIT 1000;
+  AND pp.pp_value IS NOT NULL
+LIMIT 100;
 """
 
 # الاتصال
@@ -32,7 +36,8 @@ with conn.cursor() as cursor:
     cursor.execute(query)
     results = cursor.fetchall()
 
-titles = [row[0].decode("utf-8") if isinstance(row[0], bytes) else row[0] for row in results]
+# النتائج: (english_link, arabic_suggested, title)
+titles = [row[2].decode("utf-8") if isinstance(row[2], bytes) else row[2] for row in results]
 
 for title in titles:
     en_page = pywikibot.Page(site_en, f"Module:{title}")
@@ -40,7 +45,7 @@ for title in titles:
         continue
 
     text = en_page.text
-    ar_title = f"وحدة:{title}"
+    ar_title = f"وحدة:{title.replace('_', ' ')}"
     ar_page = pywikibot.Page(site_ar, ar_title)
 
     if ar_page.exists():
@@ -53,4 +58,3 @@ for title in titles:
         print(f"📄 أنشأت {ar_title}")
     else:
         print(f"== Preview إنشاء {ar_title} ==\n{text[:1000]}...\n")
-
