@@ -6,7 +6,7 @@ SITE_EN = pywikibot.Site('en', 'wikipedia')
 SITE_AR = pywikibot.Site('ar', 'wikipedia')
 
 SOURCE_MODULE = "Module:Team_appearances_list/data"
-TARGET_MODULE = "وحدة:Team appearances list/data/ملعب"
+TARGET_MODULE = "وحدة:Team appearances list/data"
 
 JSON_PAGE = "مستخدم:Mohammed Qays/game.json"
 
