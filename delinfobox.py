@@ -15,7 +15,8 @@ JOIN linktarget AS lt ON tl.tl_target_id = lt.lt_id
 JOIN page AS p ON tl.tl_from = p.page_id
 WHERE lt.lt_namespace = 10
 AND lt.lt_title = 'بطاقة_عامة'
-AND p.page_namespace = 0;
+AND p.page_namespace = 0
+LIMIT 10;
 '''
 
 def execute_query():
