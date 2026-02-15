@@ -5,7 +5,7 @@ import mwparserfromhell
 
 class settings:
     lang = 'arwiki'
-    editsumm = "[[وب:بوت|بوت]]: إزالة قالب بطاقة عامة."
+    editsumm = "[[وب:بوت|بوت]]: إزالة [[قالب:بطاقة_عامة|قالب]] ([[ويكيبيديا:الميدان/تقنية/أرشيف/2026/فبراير#إزالة_قالب:بطاقة_عامة_من_المقالات|الخلاصة]])."
     debug = "no"  # اجعلها "yes" للتجربة بدون حفظ
 
 query = '''
@@ -16,7 +16,7 @@ JOIN page AS p ON tl.tl_from = p.page_id
 WHERE lt.lt_namespace = 10
 AND lt.lt_title = 'بطاقة_عامة'
 AND p.page_namespace = 0
-LIMIT 10;
+LIMIT 500;
 '''
 
 def execute_query():
