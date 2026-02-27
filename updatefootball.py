@@ -201,7 +201,7 @@ def process_article(title_ar, title_en):
         new_text = str(wikicode_ar).replace(old_template_text, formatted_template, 1)
 
         if Settings.debug == "yes":
-            print(f"\n=== عرض: {title_ar} ===\n")
+            print(f"\n=== Preview: {title_ar} ===\n")
             print(new_text)
             print("\n============================\n")
         else:
@@ -214,3 +214,4 @@ if __name__ == "__main__":
     articles = fetch_articles()
     for ar_title, en_title, _ in articles:
         process_article(ar_title, en_title)
+        
