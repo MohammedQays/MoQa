@@ -8,9 +8,9 @@ import mwparserfromhell
 # ===================== إعدادات البوت =====================
 
 class Settings:
-    lang = "ar"          # يستخدم مع pywikibot
-    dbname = "arwiki"    # يستخدم مع toolforge
-    debug = "no"         # ضع yes للمعاينة فقط
+    lang = "ar"
+    dbname = "arwiki"
+    debug = "yes"
     editsumm = "[[وب:بوت|بوت]]: تحديث صندوق معلومات (تجريبي)"
 
 site_ar = pywikibot.Site(Settings.lang, "wikipedia")
@@ -49,61 +49,59 @@ def apply_text_replacements(value):
         value = value.replace(en_txt, ar_txt)
     return value
 
-# ===================== تحويل الأندية =====================
+# ===================== تحويل القيم بالكامل =====================
+
+def convert_value_full(value, mapping):
+    """
+    تحويل أي حقل (نادي أو منتخب) مع الحفاظ على كل النصوص خارج الروابط
+    """
+    value = normalize_text(value)
+
+    # تقسيم النص للحفاظ على الروابط منفصلة
+    parts = re.split(r'(\[\[.*?\]\])', value)
+    new_parts = []
+
+    for part in parts:
+        if part.startswith('[[') and part.endswith(']]'):
+            en_name = extract_link_value(part)
+            if en_name in mapping:
+                data = mapping[en_name]
+                if data.get("link"):
+                    new_part = data["link"]
+                elif data.get("ar"):
+                    new_part = f"[[{data['ar']}]]"
+                elif data.get("qid"):
+                    new_part = f"{{{{Ill-WD2|id={data['qid']}|en=true}}}}"
+                else:
+                    new_part = en_name
+            else:
+                new_part = en_name
+            new_parts.append(new_part)
+        else:
+            # نصوص خارج الروابط
+            new_parts.append(part)
+
+    full_text = ''.join(new_parts)
+    full_text = apply_text_replacements(full_text)
+
+    return full_text
 
 def convert_club(value):
-    en_name = extract_link_value(value)
-
-    if en_name in club_map:
-        data = club_map[en_name]
-
-        # الأولوية للحقل 'link' إن وجد
-        if data.get("link"):
-            return data["link"]
-        if data.get("ar"):
-            return f"[[{data['ar']}]]"
-        if data.get("qid"):
-            return f"{{{{Ill-WD2|id={data['qid']}|en=true}}}}"
-
-    return en_name
-
-# ===================== تحويل المنتخبات =====================
+    return convert_value_full(value, club_map)
 
 def convert_national_team(value):
-    en_name = extract_link_value(value)
-
-    if en_name in nat_map:
-        data = nat_map[en_name]
-
-        # الأولوية للحقل 'link' إن وجد
-        if data.get("link"):
-            return data["link"]
-        if data.get("ar"):
-            return f"[[{data['ar']}]]"
-        if data.get("qid"):
-            return f"{{{{Ill-WD2|id={data['qid']}|en=true}}}}"
-
-    return en_name
+    return convert_value_full(value, nat_map)
 
 # ===================== تنسيق القالب بشكل عمودي =====================
 
 def format_template(template):
-    """
-    يعيد بناء القالب بحيث يكون كل وسيط في سطر منفصل مع مسافتين بادئتين.
-    الصيغة الناتجة تكون:
-    {{اسم القالب
-      |وسيط1=قيمة1
-      |وسيط2=قيمة2
-      ...
-    }}
-    """
     name = str(template.name).strip()
-    lines = ["{{" + name]  # بداية القالب بدون قوس إغلاق زائد
+    lines = ["{{" + name]
     for param in template.params:
         pname = str(param.name).strip()
         pvalue = str(param.value).strip()
         lines.append(f"  |{pname}={pvalue}")
-    lines.append("}}")      # إغلاق القالب
+    lines.append("}}")
     return "\n".join(lines)
 
 # ===================== جلب المقالات =====================
@@ -135,7 +133,6 @@ def fetch_articles():
     with conn.cursor() as cursor:
         cursor.execute(QUERY_ARTICLES)
         rows = cursor.fetchall()
-        # فك الترميز من bytes إلى str لكل عنوان
         return [
             (
                 row[0].decode("utf-8") if isinstance(row[0], bytes) else row[0],
@@ -164,13 +161,11 @@ def process_article(title_ar, title_en):
     template_ar = None
     template_en = None
 
-    # البحث عن القالب في العربي
     for t in wikicode_ar.filter_templates():
         if "صندوق معلومات سيرة كرة قدم" in t.name.strip():
             template_ar = t
             break
 
-    # البحث عن القالب في الإنجليزي
     for t in wikicode_en.filter_templates():
         if "Infobox football biography" in t.name.strip():
             template_en = t
@@ -181,24 +176,17 @@ def process_article(title_ar, title_en):
 
     updated = False
 
-    # المرور على كل الحقول المعرفة في datateams.json
     for en_field, ar_field in fields_config.items():
-
         if template_en.has(en_field):
             en_value = str(template_en.get(en_field).value).strip()
 
-            # تحديد نوع الحقل
             if "nationalteam" in en_field:
                 value = convert_national_team(en_value)
             elif "club" in en_field:
                 value = convert_club(en_value)
             else:
-                value = en_value
+                value = normalize_text(apply_text_replacements(en_value))
 
-            value = apply_text_replacements(value)
-            value = normalize_text(value)
-
-            # تحديث أو إضافة الحقل في العربي
             if template_ar.has(ar_field):
                 if str(template_ar.get(ar_field).value).strip() != value:
                     template_ar.get(ar_field).value = value
@@ -208,13 +196,12 @@ def process_article(title_ar, title_en):
                 updated = True
 
     if updated:
-        # تنسيق القالب بشكل عمودي
         formatted_template = format_template(template_ar)
         old_template_text = str(template_ar)
         new_text = str(wikicode_ar).replace(old_template_text, formatted_template, 1)
 
         if Settings.debug == "yes":
-            print(f"\n=== Preview: {title_ar} ===\n")
+            print(f"\n=== عرض: {title_ar} ===\n")
             print(new_text)
             print("\n============================\n")
         else:
@@ -227,4 +214,3 @@ if __name__ == "__main__":
     articles = fetch_articles()
     for ar_title, en_title, _ in articles:
         process_article(ar_title, en_title)
-
