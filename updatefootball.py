@@ -201,7 +201,7 @@ def process_article(title_ar, title_en):
         new_text = str(wikicode_ar).replace(old_template_text, formatted_template, 1)
 
         if Settings.debug == "yes":
-            print(f"\n=== Preview: {title_ar} ===\n")
+            print(f"\n=== عرض: {title_ar} ===\n")
             print(new_text)
             print("\n============================\n")
         else:
