@@ -10,7 +10,7 @@ import mwparserfromhell
 class Settings:
     lang = "ar"
     dbname = "arwiki"
-    debug = "yes"
+    debug = "no"
     editsumm = "[[وب:بوت|بوت]]: تحديث صندوق معلومات (تجريبي)"
 
 site_ar = pywikibot.Site(Settings.lang, "wikipedia")
@@ -49,50 +49,67 @@ def apply_text_replacements(value):
         value = value.replace(en_txt, ar_txt)
     return value
 
-# ===================== تحويل القيم بالكامل =====================
+# ===================== البحث الذكي في جميع الخرائط =====================
 
-def convert_value_full(value, mapping):
+def resolve_name(en_name):
     """
-    تحويل أي حقل (نادي أو منتخب) مع الحفاظ على كل النصوص خارج الروابط
+    يبحث عن الاسم في club_map ثم nat_map
+    ويعيد الصيغة المناسبة
     """
+
+    for mapping in (club_map, nat_map):
+        if en_name in mapping:
+            data = mapping[en_name]
+
+            if data.get("link"):
+                return data["link"]
+
+            if data.get("ar"):
+                return f"[[{data['ar']}]]"
+
+            if data.get("qid"):
+                return f"{{{{Ill-WD2|id={data['qid']}|en=true}}}}"
+
+    # لم يُعثر عليه في أي ملف
+    return f"{{{{وإو|{en_name}}}}}"
+
+# ===================== التحويل الكامل =====================
+
+def convert_value_smart(value):
+
     value = normalize_text(value)
-
-    # تقسيم النص للحفاظ على الروابط منفصلة
     parts = re.split(r'(\[\[.*?\]\])', value)
     new_parts = []
 
     for part in parts:
+
+        # إذا كان رابط
         if part.startswith('[[') and part.endswith(']]'):
+
             en_name = extract_link_value(part)
-            if en_name in mapping:
-                data = mapping[en_name]
-                if data.get("link"):
-                    new_part = data["link"]
-                elif data.get("ar"):
-                    new_part = f"[[{data['ar']}]]"
-                elif data.get("qid"):
-                    new_part = f"{{{{Ill-WD2|id={data['qid']}|en=true}}}}"
-                else:
-                    new_part = en_name
-            else:
-                new_part = en_name
-            new_parts.append(new_part)
+            new_parts.append(resolve_name(en_name))
+
+        # نص عادي
         else:
-            # نصوص خارج الروابط
-            new_parts.append(part)
 
-    full_text = ''.join(new_parts)
-    full_text = apply_text_replacements(full_text)
+            plain = part.strip()
 
-    return full_text
+            if not plain:
+                new_parts.append(part)
+                continue
 
-def convert_club(value):
-    return convert_value_full(value, club_map)
+            # نحاول فقط إذا كان يبدو اسماً كاملاً
+            if plain in club_map or plain in nat_map:
+                new_parts.append(resolve_name(plain))
+            else:
+                new_parts.append(part)
 
-def convert_national_team(value):
-    return convert_value_full(value, nat_map)
+    result = ''.join(new_parts)
+    result = apply_text_replacements(result)
 
-# ===================== تنسيق القالب بشكل عمودي =====================
+    return result
+
+# ===================== تنسيق القالب =====================
 
 def format_template(template):
     name = str(template.name).strip()
@@ -125,7 +142,7 @@ WHERE
   AND p.page_namespace = 0
   AND ll.ll_lang = 'en'
 ORDER BY p.page_len ASC
-LIMIT 50;
+LIMIT 100;
 """
 
 def fetch_articles():
@@ -152,11 +169,8 @@ def process_article(title_ar, title_en):
     if not page_ar.exists() or not page_en.exists():
         return
 
-    text_ar = page_ar.text
-    text_en = page_en.text
-
-    wikicode_ar = mwparserfromhell.parse(text_ar)
-    wikicode_en = mwparserfromhell.parse(text_en)
+    wikicode_ar = mwparserfromhell.parse(page_ar.text)
+    wikicode_en = mwparserfromhell.parse(page_en.text)
 
     template_ar = None
     template_en = None
@@ -177,15 +191,11 @@ def process_article(title_ar, title_en):
     updated = False
 
     for en_field, ar_field in fields_config.items():
-        if template_en.has(en_field):
-            en_value = str(template_en.get(en_field).value).strip()
 
-            if "nationalteam" in en_field:
-                value = convert_national_team(en_value)
-            elif "club" in en_field:
-                value = convert_club(en_value)
-            else:
-                value = normalize_text(apply_text_replacements(en_value))
+        if template_en.has(en_field):
+
+            en_value = str(template_en.get(en_field).value).strip()
+            value = convert_value_smart(en_value)
 
             if template_ar.has(ar_field):
                 if str(template_ar.get(ar_field).value).strip() != value:
@@ -196,6 +206,7 @@ def process_article(title_ar, title_en):
                 updated = True
 
     if updated:
+
         formatted_template = format_template(template_ar)
         old_template_text = str(template_ar)
         new_text = str(wikicode_ar).replace(old_template_text, formatted_template, 1)
@@ -211,7 +222,8 @@ def process_article(title_ar, title_en):
 # ===================== التشغيل =====================
 
 if __name__ == "__main__":
+
     articles = fetch_articles()
+
     for ar_title, en_title, _ in articles:
         process_article(ar_title, en_title)
-        
