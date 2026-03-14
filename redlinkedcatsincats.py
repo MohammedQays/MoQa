@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 # إعدادات البوت
 class settings:
-    lang = 'arwiki'
+    lang = "arwiki"
     report_title = "ويكيبيديا:تقارير قاعدة البيانات/تصانيف فيها تصانيف حمراء"
     editsumm = "[[وب:بوت|بوت]]: تحديث."
     debug = "no"
@@ -14,6 +14,7 @@ now = datetime.now(timezone.utc)
 time_part = now.strftime("%H:%M")
 day = str(int(now.strftime("%d")))
 month_en = now.strftime("%B")
+
 arabic_months = {
     "January": "يناير",
     "February": "فبراير",
@@ -28,59 +29,68 @@ arabic_months = {
     "November": "نوفمبر",
     "December": "ديسمبر",
 }
+
 month_ar = arabic_months[month_en]
 year = now.strftime("%Y")
+
 formatted_time = f"{time_part}، {day} {month_ar} {year} (ت ع م)"
 
-# SQL query لاستخراج التصانيف الحمراء
+# الاستعلام السريع
 query = """
 SELECT
-  page_title AS Title,
-  cl_to AS ParentCategory
-FROM page
-JOIN (
-    SELECT cl_from, cl_to
-    FROM categorylinks
-    LEFT JOIN page ON cl_to = page_title AND page_namespace = 14
-    WHERE page_title IS NULL
-) AS cattmp
-ON cattmp.cl_from = page_id
-WHERE page_namespace = 14
-ORDER BY cl_to;
+  p.page_title,
+  lt.lt_title
+FROM page p
+JOIN categorylinks cl ON cl.cl_from = p.page_id
+JOIN linktarget lt ON lt.lt_id = cl.cl_target_id
+LEFT JOIN page parent
+  ON parent.page_title = lt.lt_title
+ AND parent.page_namespace = 14
+WHERE
+  p.page_namespace = 14
+  AND parent.page_id IS NULL
+ORDER BY lt.lt_title
+LIMIT 5000;
 """
 
 # الاتصال بقاعدة البيانات
 wiki = pywikibot.Site()
+
 connectSuccess = False
 tries = 0
 
 while not connectSuccess:
     try:
-        conn = toolforge.connect(settings.lang, 'analytics')
+        conn = toolforge.connect(settings.lang)
         print("Executing query...")
+
+        results = []
+
         with conn.cursor() as cursor:
             cursor.execute(query)
-            results = cursor.fetchall()
+
+            for row in cursor:
+                results.append(row)
+
         connectSuccess = True
         print("Query executed successfully.")
+
     except Exception as e:
-        try:
-            cursor.close()
-        except:
-            pass
+        print("Error:", e)
+        tries += 1
+
         try:
             conn.close()
         except:
             pass
-        print("Error: ", e)
-        tries += 1
+
         if tries > 5:
             print("Failed after عدة محاولات.")
             raise SystemExit(e)
 
 # بناء محتوى التقرير
 page_content = f"""<center>
-<div class="skin-invert" style="background: #E5E4E2; padding: 0.5em; font-family: Traditional Arabic; font-size: 130%; -moz-border-radius: 0.3em; border-radius: 0.3em;">
+<div class="skin-invert" style="background:#E5E4E2;padding:0.5em;font-family:Traditional Arabic;font-size:130%;border-radius:0.3em;">
 '''قائمة التصانيف التي تحتوي على تصانيف حمراء.'''
 <onlyinclude>
 '''حَدَّث [[مستخدم:MoQabot|MoQabot]] هذه القائمة في : {formatted_time}'''
@@ -89,20 +99,28 @@ page_content = f"""<center>
 </center>
 
 <center>
-<div class="skin-invert" style="background: #E5E4E2; padding: 0.5em; -moz-border-radius: 0.3em; border-radius: 0.3em;">
+<div class="skin-invert" style="background:#E5E4E2;padding:0.5em;border-radius:0.3em;">
 __NOTOC__
 {{{{أرقام صفوف ثابتة}}}}
-
 {{| class="wikitable sortable static-row-numbers static-row-header-text"
-|- style="white-space: nowrap;"
+|- style="white-space:nowrap;"
 ! التصنيف
 ! التصنيف الأحمر
 """
 
 for row in results:
+
     title = row[0].decode("utf-8") if isinstance(row[0], bytes) else row[0]
     parent_cat = row[1].decode("utf-8") if isinstance(row[1], bytes) else row[1]
-    page_content += f"|-\n| [[:تصنيف:{title}|{title}]] || [[:تصنيف:{parent_cat}|{parent_cat}]]\n"
+
+    title = title.replace("_", " ")
+    parent_cat = parent_cat.replace("_", " ")
+
+    page_content += (
+        f"|-\n"
+        f"| [[:تصنيف:{title}|{title}]] || "
+        f"[[:تصنيف:{parent_cat}|{parent_cat}]]\n"
+    )
 
 page_content += "|}\n</div>\n</center>"
 
@@ -110,11 +128,15 @@ page_content += "|}\n</div>\n</center>"
 report_page = pywikibot.Page(wiki, settings.report_title)
 
 if settings.debug == "no":
+
     try:
         report_page.text = page_content
         report_page.save(settings.editsumm)
         print(f"Report saved to {settings.report_title}")
+
     except Exception as e:
-        print(f"Error while saving: {e}")
+        print("Error while saving:", e)
+
 else:
-    print("== Final Report Preview ==\n" + page_content)
+    print("== Final Report Preview ==\n")
+    print(page_content)
