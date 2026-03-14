@@ -25,25 +25,25 @@ formatted_time = f"<onlyinclude>{time_part}، {day} {month_ar} {year} (ت ع م)
 # استعلام SQL
 query = """
 SELECT
-  page_title,
-  page_len,
-  ((page_len / 6.0) / 300 * 40) + (page_len / 4000 * 60) AS score
-FROM
-  page
+  p.page_title,
+  p.page_len,
+  ((p.page_len / 6.0) / 300 * 40) + (p.page_len / 4000 * 60) AS score
+FROM page p
 WHERE
-  page_namespace = 0
-  AND page_len BETWEEN 1000 AND 4000
-  AND page_touched >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
-  AND page_title NOT LIKE '%(توضيح)%'
-  AND page_id NOT IN (
-    SELECT cl_from
-    FROM categorylinks
-    WHERE cl_to IN (
+  p.page_namespace = 0
+  AND p.page_len BETWEEN 1000 AND 4000
+  AND p.page_touched >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
+  AND p.page_title NOT LIKE '%(توضيح)%'
+  AND p.page_id NOT IN (
+    SELECT cl.cl_from
+    FROM categorylinks cl
+    JOIN linktarget lt ON lt.lt_id = cl.cl_target_id
+    WHERE lt.lt_title IN (
       'صفحات_مجموعات_صيغ_كيميائية_مفهرسة',
       'جميع_المقالات_غير_المراجعة',
       'جميع_صفحات_توضيح_المقالات',
       'تحويلات_من_لغات_بديلة'
-    ) OR cl_to LIKE 'بذرة%'
+    ) OR lt.lt_title LIKE 'بذرة%'
   )
 ORDER BY
   score DESC
