@@ -35,23 +35,25 @@ def decode_title(encoded_title):
 def get_articles_from_database():
     """تنفيذ الاستعلام للحصول على المقالات من قاعدة البيانات"""
     query = """
-    SELECT
-      p.page_title AS عنوان_المقال,
-      ll.ll_title AS العنوان_الإنجليزي
-    FROM
-      page p
-    JOIN
-      categorylinks cl ON cl.cl_from = p.page_id
-    JOIN
-      page c ON cl.cl_to = c.page_title AND c.page_namespace = 14
-    JOIN
-      langlinks ll ON ll.ll_from = p.page_id AND ll.ll_lang = 'en'
-    WHERE
-      c.page_title = 'صيانة_صورة_في_صندوق_معلومات'
-      AND p.page_namespace = 0
-    ORDER BY
-      p.page_title
-    """
+SELECT
+  p.page_title AS عنوان_المقال,
+  ll.ll_title AS العنوان_الإنجليزي
+FROM
+  page p
+JOIN
+  categorylinks cl ON cl.cl_from = p.page_id
+JOIN
+  linktarget lt ON lt.lt_id = cl.cl_target_id
+JOIN
+  page c ON c.page_title = lt.lt_title AND c.page_namespace = 14
+JOIN
+  langlinks ll ON ll.ll_from = p.page_id AND ll.ll_lang = 'en'
+WHERE
+  lt.lt_title = 'صيانة_صورة_في_صندوق_معلومات'
+  AND p.page_namespace = 0
+ORDER BY
+  p.page_title;
+  """
 
     conn = toolforge.connect('arwiki')
     cursor = conn.cursor()
