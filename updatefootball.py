@@ -10,7 +10,7 @@ import mwparserfromhell
 class Settings:
     lang = "ar"
     dbname = "arwiki"
-    debug = "no"
+    debug = "yes"
     editsumm = "[[وب:بوت|بوت]]: تحديث صندوق معلومات (تجريبي)"
 
 site_ar = pywikibot.Site(Settings.lang, "wikipedia")
@@ -227,3 +227,4 @@ if __name__ == "__main__":
 
     for ar_title, en_title, _ in articles:
         process_article(ar_title, en_title)
+
