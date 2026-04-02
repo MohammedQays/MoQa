@@ -15,8 +15,12 @@ FROM
 JOIN
   categorylinks AS cl
   ON cl.cl_from = p.page_id
+JOIN
+  linktarget AS lt
+  ON lt.lt_id = cl.cl_target_id
 WHERE
-  cl.cl_to = 'أخطاء_قالب_لغة_واللغة'
+  lt.lt_title = 'أخطاء_قالب_لغة_واللغة'
+  AND lt.lt_namespace = 14
   AND p.page_namespace = 0
   AND p.page_is_redirect = 0;
 """
