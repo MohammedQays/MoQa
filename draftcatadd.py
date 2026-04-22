@@ -14,12 +14,27 @@ SELECT DISTINCT
   p.page_title
 FROM
   page p
-JOIN
-  categorylinks cl ON cl.cl_from = p.page_id
 WHERE
   p.page_namespace = 2
-  AND p.page_title LIKE '%/%';
-"""
+  AND p.page_title LIKE '%/%'
+  AND p.page_title NOT LIKE '%ويكيبيديون_حصلوا_على_جوائز%'
+  AND p.page_title NOT LIKE '%أرشيف%'
+  AND EXISTS (
+    SELECT 1
+    FROM categorylinks cl
+    JOIN linktarget lt ON lt.lt_id = cl.cl_target_id
+    JOIN page cpage 
+      ON cpage.page_title = lt.lt_title
+      AND cpage.page_namespace = lt.lt_namespace
+    LEFT JOIN page_props pp 
+      ON pp.pp_page = cpage.page_id
+      AND pp.pp_propname = 'hiddencat'
+    WHERE
+      cl.cl_from = p.page_id
+      AND cpage.page_namespace = 14
+      AND pp.pp_page IS NULL
+  );
+  """
 
 conn = toolforge.connect(settings.lang, 'analytics')
 
