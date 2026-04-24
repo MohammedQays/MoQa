@@ -91,7 +91,7 @@ def replace_lang_templates(text):
         # تنظيف التنسيق
         clean_content = bold_italic_pattern.sub('', content).strip()
 
-        return f"{{{{اللغة|{code}|{clean_content}}}}}"
+        return f"({{{{اللغة|{code}|{clean_content}}}}})"
 
     return template_pattern.sub(replacer, text)
 
