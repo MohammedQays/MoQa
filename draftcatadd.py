@@ -17,8 +17,7 @@ FROM
 WHERE
   p.page_namespace = 2
   AND p.page_title LIKE '%/%'
-  AND p.page_title NOT LIKE '%ويكيبيديون_حصلوا_على_جوائز%'
-  AND p.page_title NOT LIKE '%أرشيف%'
+  AND p.page_title NOT REGEXP 'أرشيف|صناديق|صناديقي|الملف_الشخصي|ملف_شخصي'
   AND EXISTS (
     SELECT 1
     FROM categorylinks cl
@@ -33,6 +32,18 @@ WHERE
       cl.cl_from = p.page_id
       AND cpage.page_namespace = 14
       AND pp.pp_page IS NULL
+  )
+  AND NOT EXISTS (
+    SELECT 1
+    FROM categorylinks cl
+    JOIN linktarget lt ON lt.lt_id = cl.cl_target_id
+    JOIN page cpage 
+      ON cpage.page_title = lt.lt_title
+      AND cpage.page_namespace = lt.lt_namespace
+    WHERE
+      cl.cl_from = p.page_id
+      AND cpage.page_namespace = 14
+      AND cpage.page_title REGEXP 'ويكيبيديون|ويكيبيديين|مستخدمون|مستخدمين|ويكيبيدون|ويكيبيديات|مشاركون|قوالب'
   );
   """
 
