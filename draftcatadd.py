@@ -17,7 +17,7 @@ FROM
 WHERE
   p.page_namespace = 2
   AND p.page_title LIKE '%/%'
-  AND p.page_title NOT REGEXP 'أرشيف|صناديق|صناديقي|الملف_الشخصي|ملف_شخصي'
+  AND p.page_title NOT REGEXP 'أرشيف|صناديق|صناديقي|الملف_الشخصي|شرح|ملف_شخصي'
   AND EXISTS (
     SELECT 1
     FROM categorylinks cl
@@ -43,7 +43,7 @@ WHERE
     WHERE
       cl.cl_from = p.page_id
       AND cpage.page_namespace = 14
-      AND cpage.page_title REGEXP 'ويكيبيديون|ويكيبيديين|مستخدمون|مستخدمين|ويكيبيدون|ويكيبيديات|مشاركون|قوالب'
+      AND cpage.page_title REGEXP 'ويكيبيديون|ويكيبيديين|مستخدمون|مستخدمين|ويكيبيدون|مستخدم|صفحات|مساهمون|ويكيبيديا|تحويلات|ويكيبيديات|مشاركون|قوالب'
   );
   """
 
