@@ -15,6 +15,8 @@ WHERE lt_namespace = 14
   AND lt_title = 'جميع_مقالات_البذور'
   AND page_namespace = 0
   AND page_len > 3000
+
+  -- استبعاد تصنيف البذور الطويلة الخاصة
   AND NOT EXISTS (
     SELECT 1
     FROM categorylinks
@@ -23,8 +25,24 @@ WHERE lt_namespace = 14
       AND lt_namespace = 14
       AND lt_title = 'بذور_طويلة_ذات_نثر_قصير'
   )
+
+  -- استبعاد التصنيفات المطلوبة
+  AND NOT EXISTS (
+    SELECT 1
+    FROM categorylinks
+    JOIN linktarget ON lt_id = cl_target_id
+    WHERE cl_from = page_id
+      AND lt_namespace = 14
+      AND lt_title IN (
+        'صفحات_مجموعات_صيغ_كيميائية_مفهرسة',
+        'كواكب_صغيرة_مسماة',
+        'تحويلات_من_لغات_بديلة',
+        'تحويلات_علم_الفلك'
+      )
+  )
+
 ORDER BY page_len DESC
-LIMIT 50000;
+LIMIT 500;
 """
 
 # الاتصال
