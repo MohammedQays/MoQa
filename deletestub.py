@@ -56,6 +56,8 @@ def process_page(page):
         print(f"حدث خطأ أثناء معالجة الصفحة {page.title()}: {e}")
 
 # معالجة جميع المقالات في تصنيف "بذرة بحاجة لتعديل"
-category = pywikibot.Category(site, 'تصنيف:بذرة بحاجة لتعديل')
+category = pywikibot.Category(site, 'تصنيف:جميع مقالات البذور')
 for page in category.articles():
     process_page(page)
+
+
