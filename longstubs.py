@@ -9,19 +9,19 @@ site = pywikibot.Site('ar', 'wikipedia')
 query = """
 /* longstubs.rs SLOW_OK */
 SELECT
-  page_title,
-  page_len
-FROM
-  page
-  JOIN categorylinks ON cl_from = page_id
+    page_title,
+    page_len
+FROM page
+INNER JOIN categorylinks
+    ON categorylinks.cl_from = page.page_id
+INNER JOIN linktarget
+    ON categorylinks.cl_target_id = linktarget.lt_id
 WHERE
-  cl_to LIKE 'بذرة%'
-  AND page_namespace = 0
-  AND page_len > 4000
-GROUP BY
-  page_title
-ORDER BY
-  page_len DESC
+    linktarget.lt_title LIKE 'بذرة%'
+    AND page.page_namespace = 0
+    AND page.page_len > 4000
+GROUP BY page_title, page_len
+ORDER BY page_len DESC
 LIMIT 1000;
 """
 
