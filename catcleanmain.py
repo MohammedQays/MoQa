@@ -1,7 +1,6 @@
 import re
 import sys
 import pywikibot
-import wikitextparser as wtp
 from pywikibot import textlib
 
 
@@ -27,7 +26,7 @@ SEARCH_QUERIES = [
 ]
 
 
-SPACE = r"[ _]+" 
+SPACE = r"[ _]+"
 
 PATTERNS_TO_REMOVE = [
     rf"مقالات{SPACE}فيها{SPACE}معلومات{SPACE}ضبط{SPACE}استنادي",
@@ -41,9 +40,24 @@ PATTERNS_TO_REMOVE = [
     rf"بوابة{SPACE}[^|\]\r\n]+/مقالات{SPACE}متعلقة",
 ]
 
-COMBINED_PATTERN = re.compile(
-    "|".join(PATTERNS_TO_REMOVE),
-    re.IGNORECASE
+CATEGORY_LINK_PATTERN = (
+    r"\[\["
+    r"[ \t]*(?:تصنيف|Category)[ \t]*:[ \t]*"
+    r"(?:"
+    + "|".join(PATTERNS_TO_REMOVE)
+    + r")"
+    r"[ \t]*(?:\|[^\]\r\n]*)?"
+    r"\]\]"
+)
+
+LINE_REGEX = re.compile(
+    rf"^[ \t]*{CATEGORY_LINK_PATTERN}[ \t]*(?:\r?\n|$)",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+INLINE_REGEX = re.compile(
+    CATEGORY_LINK_PATTERN + r"[ \t]*",
+    re.IGNORECASE,
 )
 
 PROTECTED_REGIONS = [
@@ -55,52 +69,25 @@ PROTECTED_REGIONS = [
 ]
 
 
-def remove_categories_with_parser(text, site=None):
-    """
-    إزالة روابط التصنيف المستهدفة باستخدام wikitextparser مع احترام المناطق المحمية.
-    """
-    parsed = wtp.parse(text)
-
-    protected_ranges = []
-    for region_type in PROTECTED_REGIONS:
-        elements = getattr(parsed, region_type + 's', [])
-        for elem in elements:
-            protected_ranges.append((elem.span[0], elem.span[1]))
-
-    def is_protected(start, end):
-        for ps, pe in protected_ranges:
-            if not (end <= ps or start >= pe):  
-                return True
-        return False
-
-    links_to_remove = []
-    for link in parsed.wikilinks:
-        title = link.title
-        if not (title.startswith('تصنيف:') or title.startswith('Category:')):
-            continue
-        category_name = title.split(':', 1)[1]
-        if COMBINED_PATTERN.search(category_name):
-            start, end = link.span
-            if not is_protected(start, end):
-                links_to_remove.append((start, end, link.string))
-
-    if not links_to_remove:
-        return text
-
-    links_to_remove.sort(key=lambda x: x[0], reverse=True)
-
-    new_text = text
-    for start, end, link_str in links_to_remove:
-        new_text = new_text[:start] + new_text[end:]
-
-    new_text = re.sub(r'\n\s*\n', '\n', new_text) 
-    new_text = new_text.strip() + '\n'  
-
-    return new_text
+def remove_tracking_categories(text, site=None):
+    cleaned = textlib.replaceExcept(
+        text,
+        LINE_REGEX,
+        "",
+        PROTECTED_REGIONS,
+        site=site,
+    )
+    cleaned = textlib.replaceExcept(
+        cleaned,
+        INLINE_REGEX,
+        "",
+        PROTECTED_REGIONS,
+        site=site,
+    )
+    return cleaned
 
 
 def get_pages_using_insource(site):
-    """جلب الصفحات باستخدام insource (كما هو)"""
     seen_pages = set()
     for query in SEARCH_QUERIES:
         pywikibot.info(f"جاري البحث بالاستعلام: {query}")
@@ -128,7 +115,7 @@ def main():
             break
         try:
             original = page.get()
-            cleaned = remove_categories_with_parser(original, site)
+            cleaned = remove_tracking_categories(original, site)
             if original == cleaned:
                 continue
             if Settings.debug:
