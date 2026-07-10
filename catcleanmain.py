@@ -13,16 +13,16 @@ class Settings:
 
 
 SEARCH_QUERIES = [
-    'insource:"[[تصنيف:مقالات فيها معلومات ضبط استنادي"',
-    'insource:"[[تصنيف:جميع مقالات البذور"',
-    'insource:"[[تصنيف:مقالات مشروع ويكي المغرب"',
-    'insource:"[[تصنيف:مقالات تستعمل قوالب معلومات"',
-    'insource:"[[تصنيف:مقالات أعلام بحاجة لصورة"',
-    'insource:"[[تصنيف:صفحات تستخدم خاصية P"',
-    'insource:" ليس على ويكي بيانات]]"',
-    'insource:" ليست على ويكي بيانات]]"',
-    'insource:" كما في ويكي بيانات]]"',
-    'insource:"[[بوابة" insource:"/مقالات متعلقة"',
+    ('insource:"[[تصنيف:مقالات أعلام بحاجة لصورة"', [1]),
+    ('insource:"[[تصنيف:مقالات فيها معلومات ضبط استنادي"', [0]),
+    ('insource:"[[تصنيف:جميع مقالات البذور"', [0]),
+    ('insource:"[[تصنيف:مقالات مشروع ويكي المغرب"', [0]),
+    ('insource:"[[تصنيف:مقالات تستعمل قوالب معلومات"', [0]),
+    ('insource:"[[تصنيف:صفحات تستخدم خاصية P"', [0]),
+    ('insource:" ليس على ويكي بيانات]]"', [0]),
+    ('insource:" ليست على ويكي بيانات]]"', [0]),
+    ('insource:" كما في ويكي بيانات]]"', [0]),
+    ('insource:"[[بوابة" insource:"/مقالات متعلقة"', [0]),
 ]
 
 
@@ -89,20 +89,29 @@ def remove_tracking_categories(text, site=None):
 
 def get_pages_using_insource(site):
     seen_pages = set()
-    for query in SEARCH_QUERIES:
-        pywikibot.info(f"جاري البحث بالاستعلام: {query}")
+
+    for query, namespaces in SEARCH_QUERIES:
+        pywikibot.info(
+            f"جاري البحث بالاستعلام: {query} في النطاق: {namespaces}"
+        )
         try:
-            for page in site.search(query, total=Settings.limit * 5, namespaces=[0]):
+            for page in site.search(
+                query,
+                total=Settings.limit * 5,
+                namespaces=namespaces,
+            ):
                 title = page.title()
+
                 if title not in seen_pages:
                     seen_pages.add(title)
                     yield page
-        except Exception as e:
-            pywikibot.exception(f"فشل البحث عن الاستعلام: {query} - {e}")
+        except Exception:
+            pywikibot.exception(f"فشل البحث بالاستعلام: {query}")
 
 
 def main():
     site = pywikibot.Site(Settings.lang, Settings.family)
+
     try:
         site.login()
     except Exception:
@@ -110,14 +119,18 @@ def main():
         sys.exit(1)
 
     edits = 0
+
     for page in get_pages_using_insource(site):
         if edits >= Settings.limit:
             break
+
         try:
             original = page.get()
             cleaned = remove_tracking_categories(original, site)
+
             if original == cleaned:
                 continue
+
             if Settings.debug:
                 pywikibot.showDiff(original, cleaned)
                 pywikibot.info(f"[تجريبي] {page.title()}")
@@ -128,18 +141,25 @@ def main():
                     minor=True,
                     apply_cosmetic_changes=False,
                 )
+
             edits += 1
+
         except KeyboardInterrupt:
             pywikibot.warning("أوقف المستخدم التشغيل.")
             break
-        except (pywikibot.NoPageError, pywikibot.IsRedirectPageError) as error:
+        except (
+            pywikibot.NoPageError,
+            pywikibot.IsRedirectPageError,
+        ) as error:
             pywikibot.error(f"{page.title()}: {error}")
         except pywikibot.LockedPageError:
             pywikibot.error(f"الصفحة محمية: {page.title()}")
         except pywikibot.OtherPageSaveError as error:
             pywikibot.error(f"فشل حفظ {page.title()}: {error}")
         except Exception:
-            pywikibot.exception(f"خطأ غير متوقع أثناء معالجة {page.title()}.")
+            pywikibot.exception(
+                f"خطأ غير متوقع أثناء معالجة {page.title()}."
+            )
 
     pywikibot.info(f"انتهى التشغيل؛ عدد التعديلات: {edits}.")
 
